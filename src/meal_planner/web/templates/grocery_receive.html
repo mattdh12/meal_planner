@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Receive Groceries | Meal Planner{% endblock %}
+
+{% block content %}
+<section class="card">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Groceries purchased</p>
+      <h2>Update on-hand inventory for week of {{ week_start.strftime("%B %d") }}</h2>
+      <p class="muted">Everything starts with the app's recommended amounts. Change any quantity or storage location if your real purchase was different.</p>
+    </div>
+    <a class="button-link secondary" href="/groceries?start={{ week_start.isoformat() }}">Back to grocery list</a>
+  </div>
+</section>
+
+<section class="card">
+  <form method="post" action="/groceries/receive">
+    <input type="hidden" name="week_start" value="{{ week_start.isoformat() }}">
+    <ul class="simple-list">
+      {% for row in purchase_rows %}
+      <li class="meal-item">
+        <div class="row-between">
+          <div>
+            <span class="pill">{{ row.item.section }}</span>
+            <p class="meal-title">{{ row.item.ingredient_name }}</p>
+          </div>
+          <label class="checkbox-row">
+            <input type="checkbox" name="include_{{ row.item.id }}" checked>
+            Include
+          </label>
+        </div>
+        <div class="grid two">
+          <label>
+            Quantity bought
+            <input name="quantity_{{ row.item.id }}" type="number" step="0.25" value="{{ row.item.quantity }}">
+          </label>
+          <label>
+            Store in
+            <select name="location_{{ row.item.id }}">
+              <option value="freezer" {% if row.default_location == 'freezer' %}selected{% endif %}>Freezer</option>
+              <option value="fridge" {% if row.default_location == 'fridge' %}selected{% endif %}>Fridge</option>
+              <option value="pantry" {% if row.default_location == 'pantry' %}selected{% endif %}>Pantry</option>
+            </select>
+          </label>
+        </div>
+        <p class="muted tiny">Recommended: {{ row.item.quantity }} {{ row.item.unit }}</p>
+      </li>
+      {% else %}
+      <li class="meal-item">There is no grocery list to receive right now.</li>
+      {% endfor %}
+    </ul>
+    {% if purchase_rows %}
+    <button type="submit">Add purchased groceries to inventory</button>
+    {% endif %}
+  </form>
+</section>
+{% endblock %}

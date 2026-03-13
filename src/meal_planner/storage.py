@@ -270,7 +270,7 @@ class Database:
         with self.session() as session:
             if session.query(UserProfile).count() == 0:
                 seed_database(session)
-            sync_seed_recipe_content(session)
+            sync_seed_reference_data(session)
 
 
 def load_seed_data(path: Path = SEED_DATA_PATH) -> dict:
@@ -349,14 +349,106 @@ def seed_database(session: Session) -> None:
     session.flush()
 
 
-def sync_seed_recipe_content(session: Session) -> None:
+def sync_seed_reference_data(session: Session) -> None:
     seed_data = load_seed_data()
-    recipe_rows = {row["name"]: row for row in seed_data.get("recipes", [])}
-    recipes = session.query(Recipe).all()
-    for recipe in recipes:
-        seed_recipe = recipe_rows.get(recipe.name)
-        if seed_recipe is None:
-            continue
-        recipe.instructions = seed_recipe.get("instructions", recipe.instructions)
-        recipe.notes = seed_recipe.get("notes", recipe.notes)
+    ingredient_lookup: dict[str, Ingredient] = {ingredient.name: ingredient for ingredient in session.query(Ingredient).all()}
+
+    for appliance_row in seed_data.get("appliances", []):
+        appliance = session.query(Appliance).filter(Appliance.name == appliance_row["name"]).one_or_none()
+        if appliance is None:
+            session.add(
+                Appliance(
+                    name=appliance_row["name"],
+                    has_appliance=appliance_row["has_appliance"],
+                    is_known=True,
+                )
+            )
+
+    for ingredient_row in seed_data.get("ingredients", []):
+        ingredient = ingredient_lookup.get(ingredient_row["name"])
+        if ingredient is None:
+            ingredient = Ingredient(**ingredient_row)
+            session.add(ingredient)
+            session.flush()
+            ingredient_lookup[ingredient.name] = ingredient
+        else:
+            ingredient.default_unit = ingredient_row.get("default_unit", ingredient.default_unit)
+            ingredient.category = ingredient_row.get("category", ingredient.category)
+
+    for recipe_row in seed_data.get("recipes", []):
+        recipe = session.query(Recipe).filter(Recipe.name == recipe_row["name"]).one_or_none()
+        if recipe is None:
+            recipe = Recipe(name=recipe_row["name"])
+            session.add(recipe)
+            session.flush()
+
+        recipe.meal_slot = recipe_row["meal_slot"]
+        recipe.prep_minutes = recipe_row["prep_minutes"]
+        recipe.cook_minutes = recipe_row.get("cook_minutes", 0)
+        recipe.simplicity_score = recipe_row.get("simplicity_score", 3)
+        recipe.pots_pans_score = recipe_row.get("pots_pans_score", 2)
+        recipe.servings = recipe_row.get("servings", 1)
+        recipe.leftover_servings = recipe_row.get("leftover_servings", 0)
+        recipe.calories = recipe_row["calories"]
+        recipe.protein_g = recipe_row["protein_g"]
+        recipe.carbs_g = recipe_row["carbs_g"]
+        recipe.fat_g = recipe_row["fat_g"]
+        recipe.has_protein_component = recipe_row.get("has_protein_component", True)
+        recipe.has_carb_component = recipe_row.get("has_carb_component", True)
+        recipe.has_healthy_fat_component = recipe_row.get("has_healthy_fat_component", False)
+        recipe.has_vegetable_component = recipe_row.get("has_vegetable_component", False)
+        recipe.instructions = recipe_row.get("instructions", recipe.instructions)
+        recipe.notes = recipe_row.get("notes", recipe.notes)
+        session.flush()
+
+        session.query(RecipeIngredient).filter(RecipeIngredient.recipe_id == recipe.id).delete()
+        session.query(RecipeAppliance).filter(RecipeAppliance.recipe_id == recipe.id).delete()
+        session.flush()
+
+        for ingredient_data in recipe_row.get("ingredients", []):
+            ingredient = ingredient_lookup[ingredient_data["name"]]
+            session.add(
+                RecipeIngredient(
+                    recipe_id=recipe.id,
+                    ingredient_id=ingredient.id,
+                    quantity=ingredient_data["quantity"],
+                    unit=ingredient_data["unit"],
+                )
+            )
+        for appliance_name in recipe_row.get("appliances", []):
+            session.add(RecipeAppliance(recipe_id=recipe.id, appliance_name=appliance_name))
+
+    for supplement_row in seed_data.get("supplements", []):
+        supplement = session.query(Supplement).filter(Supplement.name == supplement_row["name"]).one_or_none()
+        if supplement is None:
+            supplement = Supplement(name=supplement_row["name"])
+            session.add(supplement)
+        supplement.category = supplement_row.get("category", supplement.category)
+        supplement.recommended = supplement_row.get("recommended", supplement.recommended)
+        supplement.notes = supplement_row.get("notes", supplement.notes)
+        supplement.dosage = supplement_row.get("dosage", supplement.dosage)
+
+    session.flush()
+
+
+def replace_inventory_from_seed(session: Session) -> None:
+    seed_data = load_seed_data()
+    ingredient_lookup: dict[str, Ingredient] = {ingredient.name: ingredient for ingredient in session.query(Ingredient).all()}
+    session.query(InventoryEvent).delete()
+    session.query(InventoryItem).delete()
+    session.flush()
+
+    for inventory_row in seed_data.get("inventory", []):
+        ingredient = ingredient_lookup.get(inventory_row["name"])
+        session.add(
+            InventoryItem(
+                name=inventory_row["name"],
+                item_type=InventoryItemType.INGREDIENT.value,
+                ingredient_id=ingredient.id if ingredient else None,
+                location=inventory_row["location"],
+                quantity=inventory_row["quantity"],
+                unit=inventory_row["unit"],
+                notes=inventory_row.get("notes", ""),
+            )
+        )
     session.flush()

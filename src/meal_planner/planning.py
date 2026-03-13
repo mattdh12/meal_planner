@@ -122,6 +122,9 @@ def score_recipe(
     feedback_score: float,
     recent_count: int,
     appliance_state: dict[str, bool | None],
+    inventory_by_ingredient: dict[int, float],
+    weekly_ingredient_counts: dict[int, int] | None = None,
+    weekly_recipe_count: int = 0,
 ) -> float:
     for recipe_appliance in recipe.appliances:
         state = appliance_state.get(recipe_appliance.appliance_name.lower())
@@ -143,6 +146,31 @@ def score_recipe(
     score += max(0, 5 - recipe.prep_minutes)
     score += max(0, 4 - recipe.pots_pans_score) * 4
     score += recipe.simplicity_score * 3
+    weekly_ingredient_counts = weekly_ingredient_counts or {}
+    ingredient_ids = [row.ingredient_id for row in recipe.ingredients]
+    if ingredient_ids:
+        overlap_count = sum(1 for ingredient_id in ingredient_ids if weekly_ingredient_counts.get(ingredient_id, 0) > 0)
+        new_shopping_count = sum(
+            1
+            for ingredient_id in ingredient_ids
+            if inventory_by_ingredient.get(ingredient_id, 0) <= 0 and weekly_ingredient_counts.get(ingredient_id, 0) == 0
+        )
+        overlap_ratio = overlap_count / len(ingredient_ids)
+        score += overlap_ratio * 28
+        score -= new_shopping_count * 10
+        score -= (1 - coverage) * 18
+        if coverage == 1.0:
+            score += 16
+            if slot_target.max_prep_minutes <= 10:
+                score += 10
+        elif coverage >= 0.75:
+            score += 8
+
+    if recipe.meal_slot in {MealSlot.BREAKFAST.value, MealSlot.SNACK.value}:
+        score += coverage * 12
+
+    repeat_penalty = 2 if recipe.meal_slot in {MealSlot.BREAKFAST.value, MealSlot.SNACK.value} else 6
+    score -= weekly_recipe_count * repeat_penalty
     if recipe.meal_slot == MealSlot.DINNER.value:
         score += 5 if recipe.has_protein_component else 0
         score += 3 if recipe.has_carb_component else 0
@@ -172,7 +200,13 @@ def current_inventory_by_ingredient(session: Session) -> dict[int, float]:
     return {ingredient_id: float(quantity) for ingredient_id, quantity in rows if ingredient_id is not None}
 
 
-def choose_best_recipe(session: Session, profile: UserProfile, meal_slot: str) -> ScoredRecipe | None:
+def choose_best_recipe(
+    session: Session,
+    profile: UserProfile,
+    meal_slot: str,
+    weekly_ingredient_counts: dict[int, int] | None = None,
+    weekly_recipe_counts: dict[int, int] | None = None,
+) -> ScoredRecipe | None:
     targets = build_slot_targets(profile, compute_nutrition_targets(profile))
     candidates = recipe_candidates(session, meal_slot)
     if not candidates:
@@ -182,6 +216,8 @@ def choose_best_recipe(session: Session, profile: UserProfile, meal_slot: str) -
     feedback = recipe_feedback_score(session)
     recent_counts = recent_recipe_counts(session)
     appliance_state = known_appliance_map(session)
+    weekly_ingredient_counts = weekly_ingredient_counts or {}
+    weekly_recipe_counts = weekly_recipe_counts or {}
 
     scored: list[ScoredRecipe] = []
     for recipe in candidates:
@@ -193,6 +229,9 @@ def choose_best_recipe(session: Session, profile: UserProfile, meal_slot: str) -
             feedback_score=feedback.get(recipe.id, 3.0),
             recent_count=recent_counts.get(recipe.id, 0),
             appliance_state=appliance_state,
+            inventory_by_ingredient=inventory,
+            weekly_ingredient_counts=weekly_ingredient_counts,
+            weekly_recipe_count=weekly_recipe_counts.get(recipe.id, 0),
         )
         scored.append(ScoredRecipe(recipe=recipe, score=score, inventory_coverage=coverage))
 

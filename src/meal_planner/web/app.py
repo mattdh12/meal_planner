@@ -30,7 +30,7 @@ STATIC_DIR = WEB_DIR / "static"
 
 def _parse_week_start(raw_value: str | None) -> date:
     if raw_value:
-        return datetime.fromisoformat(raw_value).date()
+        return start_of_week(datetime.fromisoformat(raw_value).date())
     return start_of_week(date.today())
 
 
@@ -203,6 +203,7 @@ def create_app(database_path: Path | None = None) -> FastAPI:
     async def groceries(request: Request, start: str | None = None) -> object:
         week_start = _parse_week_start(start)
         with app.state.database.session() as session:
+            PlannerService(session).generate_week_plan(week_start)
             grocery_service = GroceryService(session)
             profile_service = ProfileService(session)
             appliance_service = ApplianceService(session)
@@ -211,7 +212,14 @@ def create_app(database_path: Path | None = None) -> FastAPI:
             for item in grocery_list.items:
                 grouped[item.section].append(item)
             context = _base_context(request, profile_service.get_profile(), len(appliance_service.unresolved()))
-            context.update({"week_start": week_start, "grocery_list": grocery_list, "grouped_items": dict(grouped)})
+            context.update(
+                {
+                    "week_start": week_start,
+                    "grocery_list": grocery_list,
+                    "grouped_items": dict(grouped),
+                    "distinct_item_count": len(grocery_list.items),
+                }
+            )
             return app.state.templates.TemplateResponse(request, "groceries.html", context)
 
     @app.post("/groceries/regenerate")
@@ -219,8 +227,52 @@ def create_app(database_path: Path | None = None) -> FastAPI:
         form = await request.form()
         week_start = _parse_week_start(str(form.get("week_start")))
         with app.state.database.session() as session:
+            PlannerService(session).generate_week_plan(week_start)
             GroceryService(session).generate_weekly_list(week_start, regenerate=True)
         return RedirectResponse(url=f"/groceries?start={week_start.isoformat()}", status_code=303)
+
+    @app.get("/groceries/receive")
+    async def receive_groceries(request: Request, start: str | None = None) -> object:
+        week_start = _parse_week_start(start)
+        with app.state.database.session() as session:
+            PlannerService(session).generate_week_plan(week_start)
+            grocery_service = GroceryService(session)
+            profile_service = ProfileService(session)
+            appliance_service = ApplianceService(session)
+            context = _base_context(request, profile_service.get_profile(), len(appliance_service.unresolved()))
+            context.update(
+                {
+                    "week_start": week_start,
+                    "purchase_rows": grocery_service.purchase_rows(week_start),
+                }
+            )
+            return app.state.templates.TemplateResponse(request, "grocery_receive.html", context)
+
+    @app.post("/groceries/receive")
+    async def receive_groceries_submit(request: Request) -> RedirectResponse:
+        form = await request.form()
+        week_start = _parse_week_start(str(form.get("week_start")))
+        with app.state.database.session() as session:
+            PlannerService(session).generate_week_plan(week_start)
+            grocery_service = GroceryService(session)
+            purchase_rows = grocery_service.purchase_rows(week_start)
+            purchases: list[dict[str, object]] = []
+            for row in purchase_rows:
+                item = row["item"]
+                include_key = f"include_{item.id}"
+                if not form.get(include_key):
+                    continue
+                purchases.append(
+                    {
+                        "item_name": item.ingredient_name,
+                        "quantity": float(str(form.get(f"quantity_{item.id}") or item.quantity)),
+                        "unit": item.unit,
+                        "location": str(form.get(f"location_{item.id}") or row["default_location"]),
+                    }
+                )
+            grocery_service.apply_purchases(purchases)
+            grocery_service.generate_weekly_list(week_start, regenerate=True)
+        return RedirectResponse(url="/inventory", status_code=303)
 
     @app.get("/profile")
     async def profile(request: Request) -> object:

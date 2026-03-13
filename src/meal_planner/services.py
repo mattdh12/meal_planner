@@ -313,6 +313,16 @@ class InventoryService:
     def recent_events(self, limit: int = 12) -> list[InventoryEvent]:
         return self.session.query(InventoryEvent).order_by(InventoryEvent.created_at.desc()).limit(limit).all()
 
+    def record_grocery_purchase(self, item_name: str, quantity: float, unit: str, location: str) -> InventoryItem:
+        return self.adjust_inventory_item(
+            item_name,
+            quantity,
+            location,
+            "Grocery restock",
+            mode="delta",
+            unit=unit,
+        )
+
 
 class PlannerService:
     def __init__(self, session: Session):
@@ -373,6 +383,8 @@ class PlannerService:
             )
 
         leftovers_queue: list[tuple[int, str]] = []
+        week_ingredient_counts: dict[int, int] = defaultdict(int)
+        week_recipe_counts: dict[int, int] = defaultdict(int)
         for target_date in daterange(week_start, 7):
             day = self._get_or_create_day(target_date)
             self.session.query(PlannedMeal).filter(PlannedMeal.meal_plan_day_id == day.id).delete()
@@ -393,7 +405,13 @@ class PlannerService:
                     )
                     continue
 
-                scored = choose_best_recipe(self.session, profile, meal_slot)
+                scored = choose_best_recipe(
+                    self.session,
+                    profile,
+                    meal_slot,
+                    weekly_ingredient_counts=week_ingredient_counts,
+                    weekly_recipe_counts=week_recipe_counts,
+                )
                 if scored is None:
                     self.session.add(
                         PlannedMeal(
@@ -417,6 +435,9 @@ class PlannerService:
                         notes=f"Inventory coverage: {round(scored.inventory_coverage * 100)}%",
                     )
                 )
+                week_recipe_counts[scored.recipe.id] += 1
+                for recipe_ingredient in scored.recipe.ingredients:
+                    week_ingredient_counts[recipe_ingredient.ingredient_id] += 1
                 if meal_slot == MealSlot.DINNER.value and scored.recipe.leftover_servings and profile.leftovers_cap > 0:
                     leftovers_queue.append((scored.recipe.id, f"{scored.recipe.name} leftovers"))
             self.session.flush()
@@ -497,6 +518,20 @@ class GroceryService:
     def __init__(self, session: Session):
         self.session = session
 
+    @staticmethod
+    def suggested_location(section: str, ingredient_name: str) -> str:
+        section_key = section.lower()
+        ingredient_key = ingredient_name.lower()
+        if section_key == "frozen":
+            return InventoryLocation.FREEZER.value
+        if section_key in {"dairy", "deli", "meat", "condiments"}:
+            return InventoryLocation.FRIDGE.value
+        if section_key == "produce":
+            if any(keyword in ingredient_key for keyword in ("banana", "potato", "sweet potato", "avocado")):
+                return InventoryLocation.PANTRY.value
+            return InventoryLocation.FRIDGE.value
+        return InventoryLocation.PANTRY.value
+
     def generate_weekly_list(self, week_start: date, regenerate: bool = False) -> GroceryList:
         if regenerate:
             grocery_list = self.session.query(GroceryList).filter(GroceryList.week_start == week_start).one_or_none()
@@ -553,6 +588,31 @@ class GroceryService:
     def get_weekly_list(self, week_start: date) -> GroceryList:
         grocery_list = self.generate_weekly_list(week_start)
         return self.session.query(GroceryList).options(joinedload(GroceryList.items)).filter(GroceryList.id == grocery_list.id).one()
+
+    def purchase_rows(self, week_start: date) -> list[dict[str, Any]]:
+        grocery_list = self.get_weekly_list(week_start)
+        rows: list[dict[str, Any]] = []
+        for item in sorted(grocery_list.items, key=lambda row: (row.section, row.ingredient_name)):
+            rows.append(
+                {
+                    "item": item,
+                    "default_location": self.suggested_location(item.section, item.ingredient_name),
+                }
+            )
+        return rows
+
+    def apply_purchases(self, purchases: list[dict[str, Any]]) -> None:
+        inventory_service = InventoryService(self.session)
+        for purchase in purchases:
+            quantity = float(purchase["quantity"])
+            if quantity <= 0:
+                continue
+            inventory_service.record_grocery_purchase(
+                item_name=purchase["item_name"],
+                quantity=quantity,
+                unit=purchase["unit"],
+                location=purchase["location"],
+            )
 
 
 class FeedbackService:

@@ -8,12 +8,27 @@
     <div>
       <p class="eyebrow">Weekly grocery list</p>
       <h2>{{ grocery_list.store_name }} for week of {{ week_start.strftime("%B %d") }}</h2>
+      <p class="muted">This list is only for the upcoming week of meals and tries to reuse ingredients instead of scattering across too many one-off items.</p>
     </div>
     <form method="post" action="/groceries/regenerate" class="inline-form">
       <input type="hidden" name="week_start" value="{{ week_start.isoformat() }}">
       <button type="submit">Regenerate list</button>
     </form>
   </div>
+</section>
+
+<section class="grid two">
+  <article class="card">
+    <p class="eyebrow">Shopping summary</p>
+    <h2>{{ distinct_item_count }} distinct items</h2>
+    <p class="muted">The planner now leans toward recipes that share ingredients across the week so the shopping list stays tighter.</p>
+  </article>
+  <article class="card">
+    <p class="eyebrow">After shopping</p>
+    <h2>Update inventory from this list</h2>
+    <p class="muted">Open the purchase page to start with the recommended amounts, adjust anything you bought differently, and add it straight to your on-hand inventory.</p>
+    <a class="button-link" href="/groceries/receive?start={{ week_start.isoformat() }}">Record purchased groceries</a>
+  </article>
 </section>
 
 <section class="grid two">

@@ -286,6 +286,17 @@ label {
   font-size: 0.92rem;
 }
 
+.checkbox-row {
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+  font-weight: 700;
+}
+
+.checkbox-row input {
+  width: auto;
+}
+
 input,
 select,
 textarea,
