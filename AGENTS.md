@@ -14,7 +14,7 @@ The long-term goal is to turn this into a simple app I can use on my phone for p
 - Create environment: `python -m venv .venv`
 - Activate environment: `.venv\Scripts\Activate.ps1`
 - Install dependencies: `pip install -r requirements.txt`
-- Run app: TBD
+- Run app: `python run_app.py`
 - Run tests: `pytest`
 - Start notebook: `.venv\Scripts\jupyter-lab.exe`
 

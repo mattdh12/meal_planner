@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Today | Meal Planner{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <article class="card">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Today</p>
+        <h2>{{ overview.day.plan_date.strftime("%A, %B %d") }}</h2>
+      </div>
+      <form method="post" action="/today/refresh">
+        <button type="submit">Refresh week</button>
+      </form>
+    </div>
+
+    <ul class="meal-list">
+      {% for meal in overview.day.meals|sort(attribute='meal_slot') %}
+      <li class="meal-item">
+        <header>
+          <div>
+            <span class="pill">{{ meal.meal_slot|title }}</span>
+            <p class="meal-title">{{ meal.title }}</p>
+            <p class="muted tiny">{{ meal.notes or "Planned around your current rules and inventory." }}</p>
+          </div>
+          {% if meal.recipe_id and not meal.completed %}
+          <form method="post" action="/today/meals/{{ meal.id }}/complete">
+            <button type="submit">Mark made</button>
+          </form>
+          {% elif meal.completed %}
+          <span class="pill">Completed</span>
+          {% endif %}
+        </header>
+      </li>
+      {% endfor %}
+    </ul>
+  </article>
+
+  <aside class="grid">
+    <article class="card">
+      <p class="eyebrow">Targets</p>
+      <h3>{{ overview.nutrition.calories }} kcal</h3>
+      <p class="muted">Protein {{ overview.nutrition.protein_g }}g, carbs {{ overview.nutrition.carbs_g }}g, fat {{ overview.nutrition.fat_g }}g.</p>
+    </article>
+    <article class="callout">
+      <h3>Planning vibe</h3>
+      <p class="muted">Breakfast stays instant, lunch stays quick, snacks stay simple, and dinner gets the most prep room.</p>
+    </article>
+  </aside>
+</section>
+
+<section class="grid two">
+  <article class="card">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Prep reminders</p>
+        <h2>What to do next</h2>
+      </div>
+    </div>
+    <ul class="simple-list">
+      {% for task in overview.day.prep_tasks %}
+      <li class="meal-item">
+        <strong>{{ task.due_date.strftime("%a") }}</strong>
+        <p>{{ task.description }}</p>
+      </li>
+      {% else %}
+      <li class="meal-item">
+        <p>No extra prep tasks today. You are set.</p>
+      </li>
+      {% endfor %}
+    </ul>
+  </article>
+
+  <article class="card">
+    <p class="eyebrow">AI nudges</p>
+    <h2>Suggested next moves</h2>
+    <ul class="simple-list">
+      {% for suggestion in suggestions %}
+      <li class="meal-item">
+        <strong>{{ suggestion.title }}</strong>
+        <p>{{ suggestion.body }}</p>
+      </li>
+      {% endfor %}
+    </ul>
+  </article>
+</section>
+
+<section class="grid two">
+  <article class="card">
+    <p class="eyebrow">Weekly groceries</p>
+    <h2>{{ grocery_list.store_name }} list</h2>
+    <ul class="simple-list">
+      {% for item in grocery_list.items[:8] %}
+      <li class="meal-item row-between">
+        <span>{{ item.ingredient_name }}</span>
+        <span class="muted">{{ item.quantity }} {{ item.unit }}</span>
+      </li>
+      {% else %}
+      <li class="meal-item">Nothing missing for the current week.</li>
+      {% endfor %}
+    </ul>
+    <a class="button-link secondary" href="/groceries">Open full grocery list</a>
+  </article>
+
+  <article class="card">
+    <p class="eyebrow">Inventory activity</p>
+    <h2>Recent updates</h2>
+    <ul class="simple-list">
+      {% for event in recent_events %}
+      <li class="meal-item">
+        <strong>{{ event.inventory_item_name }}</strong>
+        <p class="muted tiny">{{ event.event_type.replace('_', ' ')|title }} | {{ event.quantity_delta }} {{ event.unit }} | {{ event.reason }}</p>
+      </li>
+      {% else %}
+      <li class="meal-item">Inventory changes will show up here after you start checking meals off.</li>
+      {% endfor %}
+    </ul>
+  </article>
+</section>
+{% endblock %}

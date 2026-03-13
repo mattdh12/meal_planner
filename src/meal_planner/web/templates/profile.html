@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Profile | Meal Planner{% endblock %}
+
+{% block content %}
+<section class="grid two">
+  <article class="card">
+    <p class="eyebrow">Profile settings</p>
+    <h2>Goals and planning rules</h2>
+    <form method="post" action="/profile">
+      <div class="grid two">
+        <label>
+          Name
+          <input name="name" value="{{ profile.name }}">
+        </label>
+        <label>
+          Age
+          <input name="age" type="number" value="{{ profile.age }}">
+        </label>
+      </div>
+      <div class="grid two">
+        <label>
+          Sex
+          <select name="sex">
+            <option value="male" {% if profile.sex == 'male' %}selected{% endif %}>Male</option>
+            <option value="female" {% if profile.sex == 'female' %}selected{% endif %}>Female</option>
+            <option value="other" {% if profile.sex == 'other' %}selected{% endif %}>Other</option>
+          </select>
+        </label>
+        <label>
+          Shopping frequency (days)
+          <input name="shopping_frequency_days" type="number" value="{{ profile.shopping_frequency_days }}">
+        </label>
+      </div>
+      <div class="grid two">
+        <label>
+          Current weight (lb)
+          <input name="current_weight_lb" type="number" step="0.5" value="{{ profile.current_weight_lb }}">
+        </label>
+        <label>
+          Goal weight (lb)
+          <input name="goal_weight_lb" type="number" step="0.5" value="{{ profile.goal_weight_lb }}">
+        </label>
+      </div>
+      <div class="grid two">
+        <label>
+          Leftovers cap
+          <input name="leftovers_cap" type="number" value="{{ profile.leftovers_cap }}">
+        </label>
+        <label>
+          Preferred store
+          <input name="preferred_store" value="{{ profile.preferred_store }}">
+        </label>
+      </div>
+      <div class="grid two">
+        <label>
+          Breakfast prep max
+          <input name="breakfast_max_prep_minutes" type="number" value="{{ profile.breakfast_max_prep_minutes }}">
+        </label>
+        <label>
+          Lunch prep max
+          <input name="lunch_max_prep_minutes" type="number" value="{{ profile.lunch_max_prep_minutes }}">
+        </label>
+      </div>
+      <div class="grid two">
+        <label>
+          Snack prep max
+          <input name="snack_max_prep_minutes" type="number" value="{{ profile.snack_max_prep_minutes }}">
+        </label>
+        <label>
+          Dinner prep max
+          <input name="dinner_max_prep_minutes" type="number" value="{{ profile.dinner_max_prep_minutes }}">
+        </label>
+      </div>
+      <label>
+        Fitness goal
+        <textarea name="fitness_goal">{{ profile.fitness_goal }}</textarea>
+      </label>
+      <label>
+        Notes
+        <textarea name="notes">{{ profile.notes }}</textarea>
+      </label>
+      <button type="submit">Save profile</button>
+    </form>
+  </article>
+
+  <article class="card">
+    <p class="eyebrow">Appliances</p>
+    <h2>What the planner knows</h2>
+    <ul class="simple-list">
+      {% for appliance in appliances %}
+      <li class="meal-item">
+        <div class="row-between">
+          <strong>{{ appliance.name }}</strong>
+          <span class="muted">
+            {% if appliance.has_appliance is none %}
+            Unknown
+            {% elif appliance.has_appliance %}
+            Available
+            {% else %}
+            Not available
+            {% endif %}
+          </span>
+        </div>
+        {% if appliance.has_appliance is none %}
+        <form method="post" action="/profile/appliances/resolve" class="inline-form">
+          <input type="hidden" name="name" value="{{ appliance.name }}">
+          <button type="submit" name="has_it" value="true">I have it</button>
+          <button type="submit" name="has_it" value="false" class="secondary">I do not have it</button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </article>
+</section>
+{% endblock %}

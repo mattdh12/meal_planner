@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Recipes | Meal Planner{% endblock %}
+
+{% block content %}
+<section class="card">
+  <p class="eyebrow">Recipe library</p>
+  <h2>Seed meals and future candidates</h2>
+  <p class="muted">This is the reusable recipe catalog the planner scores against your rules, inventory, and feedback.</p>
+</section>
+
+<section class="grid two">
+  {% for recipe in recipes %}
+  <article class="card">
+    <div class="row-between">
+      <div>
+        <span class="pill">{{ recipe.meal_slot|title }}</span>
+        <h3><a href="/recipes/{{ recipe.id }}">{{ recipe.name }}</a></h3>
+      </div>
+      <div class="muted tiny">{{ recipe.calories }} kcal</div>
+    </div>
+    <p class="muted">Prep {{ recipe.prep_minutes }}m | Cook {{ recipe.cook_minutes }}m | Protein {{ recipe.protein_g }}g</p>
+    <p>{{ recipe.instructions }}</p>
+    <p class="muted tiny">
+      Appliances:
+      {% for appliance in recipe.appliances %}
+      {{ appliance.appliance_name }}{% if not loop.last %}, {% endif %}
+      {% else %}
+      none
+      {% endfor %}
+    </p>
+  </article>
+  {% endfor %}
+</section>
+{% endblock %}

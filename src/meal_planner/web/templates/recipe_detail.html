@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}{{ recipe.name if recipe else 'Recipe' }} | Meal Planner{% endblock %}
+
+{% block content %}
+{% if recipe %}
+<section class="grid two">
+  <article class="card">
+    <span class="pill">{{ recipe.meal_slot|title }}</span>
+    <h2>{{ recipe.name }}</h2>
+    <p class="muted">Prep {{ recipe.prep_minutes }}m | Cook {{ recipe.cook_minutes }}m | Servings {{ recipe.servings }} | Leftovers {{ recipe.leftover_servings }}</p>
+    <p>{{ recipe.instructions }}</p>
+    <div class="callout">
+      <strong>Macros</strong>
+      <p>{{ recipe.calories }} kcal | Protein {{ recipe.protein_g }}g | Carbs {{ recipe.carbs_g }}g | Fat {{ recipe.fat_g }}g</p>
+    </div>
+  </article>
+
+  <article class="card">
+    <p class="eyebrow">Ingredients</p>
+    <ul class="simple-list">
+      {% for row in recipe.ingredients %}
+      <li class="meal-item row-between">
+        <span>{{ row.ingredient.name }}</span>
+        <span class="muted">{{ row.quantity }} {{ row.unit }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    <p class="muted tiny">
+      Appliances:
+      {% for appliance in recipe.appliances %}
+      {{ appliance.appliance_name }}{% if not loop.last %}, {% endif %}
+      {% else %}
+      none
+      {% endfor %}
+    </p>
+  </article>
+</section>
+
+<section class="grid two">
+  <article class="card">
+    <p class="eyebrow">Add feedback</p>
+    <form method="post" action="/recipes/{{ recipe.id }}/feedback">
+      <div class="grid two">
+        <label>
+          Taste
+          <select name="tasty_rating">
+            {% for value in range(1, 6) %}
+            <option value="{{ value }}">{{ value }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Ease
+          <select name="ease_rating">
+            {% for value in range(1, 6) %}
+            <option value="{{ value }}">{{ value }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      <label>
+        Notes
+        <textarea name="notes" placeholder="What worked, what felt annoying, what you would change next time."></textarea>
+      </label>
+      <button type="submit">Save recipe feedback</button>
+    </form>
+  </article>
+
+  <article class="card">
+    <p class="eyebrow">Recent reactions</p>
+    <ul class="simple-list">
+      {% for entry in recipe.feedback_entries|sort(attribute='created_at', reverse=True) %}
+      <li class="meal-item">
+        <strong>Taste {{ entry.tasty_rating }}/5 | Ease {{ entry.ease_rating }}/5</strong>
+        <p>{{ entry.notes or "No extra notes." }}</p>
+      </li>
+      {% else %}
+      <li class="meal-item">No feedback yet.</li>
+      {% endfor %}
+    </ul>
+  </article>
+</section>
+{% endif %}
+{% endblock %}

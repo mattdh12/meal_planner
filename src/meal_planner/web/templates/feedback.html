@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Feedback | Meal Planner{% endblock %}
+
+{% block content %}
+<section class="grid two">
+  <article class="card">
+    <p class="eyebrow">AI suggestions</p>
+    <h2>What the feedback is telling the planner</h2>
+    <ul class="simple-list">
+      {% for suggestion in suggestions %}
+      <li class="meal-item">
+        <strong>{{ suggestion.title }}</strong>
+        <p>{{ suggestion.body }}</p>
+      </li>
+      {% endfor %}
+    </ul>
+  </article>
+
+  <article class="card">
+    <p class="eyebrow">Supplement feedback</p>
+    <h2>Rate what you are using</h2>
+    <div class="table-like">
+      {% for supplement in supplements %}
+      <div class="meal-item">
+        <div class="row-between">
+          <strong>{{ supplement.name }}</strong>
+          <span class="muted">{{ supplement.dosage }}</span>
+        </div>
+        <p class="muted tiny">{{ supplement.notes }}</p>
+        <form method="post" action="/feedback/supplements/{{ supplement.id }}">
+          <label>
+            Rating
+            <select name="rating">
+              {% for value in range(1, 6) %}
+              <option value="{{ value }}">{{ value }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Notes
+            <textarea name="notes" placeholder="How did this feel? Helpful, annoying, tasty, worth reordering?"></textarea>
+          </label>
+          <button type="submit" class="secondary">Save supplement feedback</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+  </article>
+</section>
+
+<section class="grid two">
+  <article class="card">
+    <p class="eyebrow">Recent recipe feedback</p>
+    <ul class="simple-list">
+      {% for entry in recipe_feedback %}
+      <li class="meal-item">
+        <strong>{{ entry.recipe.name if entry.recipe else 'Recipe' }}</strong>
+        <p class="muted tiny">Taste {{ entry.tasty_rating }}/5 | Ease {{ entry.ease_rating }}/5</p>
+        <p>{{ entry.notes or "No extra notes." }}</p>
+      </li>
+      {% else %}
+      <li class="meal-item">Recipe feedback will show up here once you start rating meals.</li>
+      {% endfor %}
+    </ul>
+  </article>
+
+  <article class="card">
+    <p class="eyebrow">Recent supplement feedback</p>
+    <ul class="simple-list">
+      {% for entry in supplement_feedback %}
+      <li class="meal-item">
+        <strong>{{ entry.supplement.name if entry.supplement else 'Supplement' }}</strong>
+        <p class="muted tiny">Rating {{ entry.rating }}/5</p>
+        <p>{{ entry.notes or "No extra notes." }}</p>
+      </li>
+      {% else %}
+      <li class="meal-item">Supplement feedback will show up here after you rate one.</li>
+      {% endfor %}
+    </ul>
+  </article>
+</section>
+{% endblock %}

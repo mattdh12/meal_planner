@@ -1,0 +1,6 @@
+fastapi==0.135.1
+uvicorn==0.41.0
+sqlalchemy==2.0.48
+python-multipart==0.0.22
+pytest==9.0.2
+jupyterlab==4.5.6

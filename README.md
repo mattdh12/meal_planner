@@ -23,6 +23,24 @@ Use the local virtual environment for all project work.
 .venv\Scripts\activate.bat
 ```
 
+Install dependencies:
+
+```bat
+pip install -r requirements.txt
+```
+
+Run the web app:
+
+```bat
+python run_app.py
+```
+
+Run tests:
+
+```bat
+python -m pytest
+```
+
 Start Jupyter Lab:
 
 ```bat

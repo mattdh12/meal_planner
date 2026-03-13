@@ -12,6 +12,8 @@ venv/
 # Environment and local settings
 .env
 .env.*
+data/*.db
+data/*.sqlite3
 
 # Test and tooling caches
 .pytest_cache/

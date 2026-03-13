@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Groceries | Meal Planner{% endblock %}
+
+{% block content %}
+<section class="card">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Weekly grocery list</p>
+      <h2>{{ grocery_list.store_name }} for week of {{ week_start.strftime("%B %d") }}</h2>
+    </div>
+    <form method="post" action="/groceries/regenerate" class="inline-form">
+      <input type="hidden" name="week_start" value="{{ week_start.isoformat() }}">
+      <button type="submit">Regenerate list</button>
+    </form>
+  </div>
+</section>
+
+<section class="grid two">
+  {% for section, items in grouped_items.items() %}
+  <article class="card">
+    <p class="eyebrow">{{ section }}</p>
+    <h2>{{ items|length }} items</h2>
+    <ul class="simple-list">
+      {% for item in items %}
+      <li class="meal-item row-between">
+        <span>{{ item.ingredient_name }}</span>
+        <span class="muted">{{ item.quantity }} {{ item.unit }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </article>
+  {% else %}
+  <article class="card">
+    <h2>No groceries needed</h2>
+    <p class="muted">Current inventory already covers the planned week.</p>
+  </article>
+  {% endfor %}
+</section>
+{% endblock %}

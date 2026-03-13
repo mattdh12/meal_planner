@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Weekly Plan | Meal Planner{% endblock %}
+
+{% block content %}
+<section class="card">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Week view</p>
+      <h2>Week of {{ week_start.strftime("%B %d, %Y") }}</h2>
+    </div>
+    <form method="post" action="/plans/week/regenerate" class="inline-form">
+      <input type="hidden" name="week_start" value="{{ week_start.isoformat() }}">
+      <button type="submit">Regenerate week</button>
+    </form>
+  </div>
+</section>
+
+<section class="grid">
+  {% for day in days %}
+  <article class="card">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">{{ day.plan_date.strftime("%A") }}</p>
+        <h3>{{ day.plan_date.strftime("%B %d") }}</h3>
+      </div>
+    </div>
+    <ul class="meal-list">
+      {% for meal in day.meals %}
+      <li class="meal-item">
+        <div class="row-between">
+          <div>
+            <span class="pill">{{ meal.meal_slot|title }}</span>
+            <p class="meal-title">{{ meal.title }}</p>
+            <p class="muted tiny">{{ meal.notes }}</p>
+          </div>
+        </div>
+        <form method="post" action="/plans/meals/{{ meal.id }}/replace" class="inline-form">
+          <input type="hidden" name="week_start" value="{{ week_start.isoformat() }}">
+          <label>
+            Swap recipe
+            <select name="recipe_id">
+              {% for recipe in recipe_options.get(meal.meal_slot, []) %}
+              <option value="{{ recipe.id }}" {% if meal.recipe_id == recipe.id %}selected{% endif %}>{{ recipe.name }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <button type="submit" class="secondary">Update meal</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% if day.prep_tasks %}
+    <div class="callout">
+      <strong>Prep tasks</strong>
+      <ul class="simple-list">
+        {% for task in day.prep_tasks %}
+        <li>{{ task.description }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </article>
+  {% endfor %}
+</section>
+{% endblock %}
