@@ -22,6 +22,7 @@
     <p class="eyebrow">Shopping summary</p>
     <h2>{{ distinct_item_count }} distinct items</h2>
     <p class="muted">The planner now leans toward recipes that share ingredients across the week so the shopping list stays tighter.</p>
+    <p class="muted tiny">{{ store_match_count }} items have curated Wegmans package suggestions. {{ linked_product_count }} of those currently have a direct product reference link saved in the app.</p>
   </article>
   <article class="card">
     <p class="eyebrow">After shopping</p>
@@ -32,15 +33,31 @@
 </section>
 
 <section class="grid two">
-  {% for section, items in grouped_items.items() %}
+  {% for section, rows in grouped_rows.items() %}
   <article class="card">
     <p class="eyebrow">{{ section }}</p>
-    <h2>{{ items|length }} items</h2>
+    <h2>{{ rows|length }} items</h2>
     <ul class="simple-list">
-      {% for item in items %}
-      <li class="meal-item row-between">
-        <span>{{ item.ingredient_name }}</span>
-        <span class="muted">{{ item.quantity }} {{ item.unit }}</span>
+      {% for row in rows %}
+      <li class="meal-item">
+        <div class="row-between">
+          <div>
+            <p class="meal-title">{{ row.item.ingredient_name }}</p>
+            <p class="muted tiny">Need {{ row.item.quantity }} {{ row.item.unit }} for the upcoming week.</p>
+          </div>
+          <span class="pill">{{ row.item.section }}</span>
+        </div>
+        <div class="shopping-note">
+          <p class="eyebrow">Suggested Wegmans buy</p>
+          <p class="meal-title">{{ row.shopping_label }}</p>
+          <p class="muted tiny">Default inventory update: {{ row.recommended_inventory_label }}</p>
+          {% if row.notes %}
+          <p class="muted tiny">{{ row.notes }}</p>
+          {% endif %}
+          {% if row.product_url %}
+          <a class="tiny-link" href="{{ row.product_url }}" target="_blank" rel="noreferrer">Open current Wegmans reference</a>
+          {% endif %}
+        </div>
       </li>
       {% endfor %}
     </ul>

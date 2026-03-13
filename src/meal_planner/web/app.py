@@ -208,16 +208,19 @@ def create_app(database_path: Path | None = None) -> FastAPI:
             profile_service = ProfileService(session)
             appliance_service = ApplianceService(session)
             grocery_list = grocery_service.get_weekly_list(week_start)
+            shopping_rows = grocery_service.shopping_rows(week_start)
             grouped: dict[str, list] = defaultdict(list)
-            for item in grocery_list.items:
-                grouped[item.section].append(item)
+            for row in shopping_rows:
+                grouped[row["item"].section].append(row)
             context = _base_context(request, profile_service.get_profile(), len(appliance_service.unresolved()))
             context.update(
                 {
                     "week_start": week_start,
                     "grocery_list": grocery_list,
-                    "grouped_items": dict(grouped),
+                    "grouped_rows": dict(grouped),
                     "distinct_item_count": len(grocery_list.items),
+                    "store_match_count": sum(1 for row in shopping_rows if row["has_store_reference"]),
+                    "linked_product_count": sum(1 for row in shopping_rows if row["product_url"]),
                 }
             )
             return app.state.templates.TemplateResponse(request, "groceries.html", context)

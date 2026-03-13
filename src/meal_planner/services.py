@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import date, timedelta
+import math
 from typing import Any
 
 from sqlalchemy import func
@@ -19,6 +20,7 @@ from meal_planner.domain import (
 )
 from meal_planner.planning import build_slot_targets, choose_best_recipe, compute_nutrition_targets
 from meal_planner.settings import DEFAULT_STORE
+from meal_planner.store_catalog import get_wegmans_product_reference
 from meal_planner.storage import (
     Appliance,
     GroceryList,
@@ -519,6 +521,13 @@ class GroceryService:
         self.session = session
 
     @staticmethod
+    def _display_quantity(quantity: float) -> str:
+        rounded = round(quantity, 2)
+        if float(rounded).is_integer():
+            return str(int(rounded))
+        return f"{rounded:g}"
+
+    @staticmethod
     def suggested_location(section: str, ingredient_name: str) -> str:
         section_key = section.lower()
         ingredient_key = ingredient_name.lower()
@@ -589,13 +598,60 @@ class GroceryService:
         grocery_list = self.generate_weekly_list(week_start)
         return self.session.query(GroceryList).options(joinedload(GroceryList.items)).filter(GroceryList.id == grocery_list.id).one()
 
-    def purchase_rows(self, week_start: date) -> list[dict[str, Any]]:
+    def shopping_rows(self, week_start: date) -> list[dict[str, Any]]:
         grocery_list = self.get_weekly_list(week_start)
         rows: list[dict[str, Any]] = []
         for item in sorted(grocery_list.items, key=lambda row: (row.section, row.ingredient_name)):
+            reference = get_wegmans_product_reference(item.ingredient_name)
+            if reference and reference.inventory_unit == item.unit:
+                package_inventory_quantity = reference.inventory_quantity
+                product_name = reference.product_name
+                package_size_label = reference.package_size_label
+                product_url = reference.product_url
+                notes = reference.notes
+                has_store_reference = True
+            else:
+                package_inventory_quantity = item.quantity
+                product_name = item.ingredient_name
+                package_size_label = f"enough for {self._display_quantity(item.quantity)} {item.unit}"
+                product_url = None
+                notes = "No curated Wegmans package is saved for this ingredient yet."
+                has_store_reference = False
+
+            recommended_packages = max(1, math.ceil(item.quantity / max(package_inventory_quantity, 0.01)))
+            recommended_inventory_quantity = round(recommended_packages * package_inventory_quantity, 2)
             rows.append(
                 {
                     "item": item,
+                    "product_name": product_name,
+                    "package_size_label": package_size_label,
+                    "recommended_packages": recommended_packages,
+                    "recommended_inventory_quantity": recommended_inventory_quantity,
+                    "recommended_inventory_label": f"{self._display_quantity(recommended_inventory_quantity)} {item.unit}",
+                    "shopping_label": f"{recommended_packages} x {product_name} ({package_size_label})",
+                    "product_url": product_url,
+                    "notes": notes,
+                    "has_store_reference": has_store_reference,
+                }
+            )
+        return rows
+
+    def purchase_rows(self, week_start: date) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        for row in self.shopping_rows(week_start):
+            item = row["item"]
+            rows.append(
+                {
+                    "item": item,
+                    "product_name": row["product_name"],
+                    "package_size_label": row["package_size_label"],
+                    "recommended_packages": row["recommended_packages"],
+                    "recommended_inventory_quantity": row["recommended_inventory_quantity"],
+                    "recommended_inventory_label": row["recommended_inventory_label"],
+                    "shopping_label": row["shopping_label"],
+                    "product_url": row["product_url"],
+                    "notes": row["notes"],
+                    "has_store_reference": row["has_store_reference"],
                     "default_location": self.suggested_location(item.section, item.ingredient_name),
                 }
             )

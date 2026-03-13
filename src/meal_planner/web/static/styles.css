@@ -246,6 +246,14 @@ h3 {
   border: 1px solid rgba(49, 213, 162, 0.2);
 }
 
+.shopping-note {
+  margin-top: 0.9rem;
+  padding: 0.95rem;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, rgba(10, 20, 30, 0.82), rgba(14, 26, 39, 0.92));
+  border: 1px solid rgba(49, 213, 162, 0.16);
+}
+
 .instruction-block {
   margin: 1rem 0;
   padding: 1rem;

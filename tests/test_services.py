@@ -3,6 +3,7 @@ from datetime import date, timedelta
 from meal_planner.domain import MEAL_SLOT_ORDER, start_of_week
 from meal_planner.planning import compute_nutrition_targets
 from meal_planner.services import ApplianceService, GroceryService, InventoryService, PlannerService, ProfileService
+from meal_planner.store_catalog import get_wegmans_product_reference
 from meal_planner.storage import Database, InventoryItem, MealPlanDay
 
 
@@ -175,3 +176,28 @@ def test_workouts_per_week_adds_average_training_calories(tmp_path):
 
         assert training_week_average.calories > rest_day_average.calories
         assert training_week_average.carbs_g > rest_day_average.carbs_g
+
+
+def test_wegmans_catalog_returns_package_reference_for_milk():
+    reference = get_wegmans_product_reference("Milk")
+
+    assert reference is not None
+    assert reference.package_size_label == "1/2 gallon carton"
+    assert reference.inventory_quantity == 8.0
+
+
+def test_grocery_rows_include_package_based_store_suggestions(tmp_path):
+    database = Database(tmp_path / "wegmans_rows.db")
+    database.initialize()
+
+    with database.session() as session:
+        week_start = start_of_week(date.today())
+        PlannerService(session).generate_week_plan(week_start, regenerate=True)
+        rows = GroceryService(session).shopping_rows(week_start)
+
+        assert rows
+        milk_row = next(row for row in rows if row["item"].ingredient_name == "Milk")
+
+        assert milk_row["recommended_packages"] >= 1
+        assert "Whole milk" in milk_row["shopping_label"]
+        assert milk_row["recommended_inventory_quantity"] >= milk_row["item"].quantity

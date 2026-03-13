@@ -24,6 +24,10 @@
           <div>
             <span class="pill">{{ row.item.section }}</span>
             <p class="meal-title">{{ row.item.ingredient_name }}</p>
+            <p class="muted tiny">{{ row.shopping_label }}</p>
+            {% if row.product_url %}
+            <a class="tiny-link" href="{{ row.product_url }}" target="_blank" rel="noreferrer">Open current Wegmans reference</a>
+            {% endif %}
           </div>
           <label class="checkbox-row">
             <input type="checkbox" name="include_{{ row.item.id }}" checked>
@@ -32,8 +36,8 @@
         </div>
         <div class="grid two">
           <label>
-            Quantity bought
-            <input name="quantity_{{ row.item.id }}" type="number" step="0.25" value="{{ row.item.quantity }}">
+            Inventory amount to add ({{ row.item.unit }})
+            <input name="quantity_{{ row.item.id }}" type="number" step="0.25" value="{{ row.recommended_inventory_quantity }}">
           </label>
           <label>
             Store in
@@ -44,7 +48,11 @@
             </select>
           </label>
         </div>
-        <p class="muted tiny">Recommended: {{ row.item.quantity }} {{ row.item.unit }}</p>
+        <p class="muted tiny">Suggested buy: {{ row.shopping_label }}</p>
+        <p class="muted tiny">Default receive amount: {{ row.recommended_inventory_label }}</p>
+        {% if row.notes %}
+        <p class="muted tiny">{{ row.notes }}</p>
+        {% endif %}
       </li>
       {% else %}
       <li class="meal-item">There is no grocery list to receive right now.</li>
