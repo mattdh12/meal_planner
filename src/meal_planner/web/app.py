@@ -293,6 +293,7 @@ def create_app(database_path: Path | None = None) -> FastAPI:
             "sex": str(form.get("sex") or "male"),
             "current_weight_lb": float(str(form.get("current_weight_lb") or 0)),
             "goal_weight_lb": float(str(form.get("goal_weight_lb") or 0)),
+            "workouts_per_week": int(str(form.get("workouts_per_week") or 0)),
             "fitness_goal": str(form.get("fitness_goal") or ""),
             "shopping_frequency_days": int(str(form.get("shopping_frequency_days") or 7)),
             "preferred_store": str(form.get("preferred_store") or "Wegmans"),

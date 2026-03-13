@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 
 from meal_planner.domain import MEAL_SLOT_ORDER, start_of_week
+from meal_planner.planning import compute_nutrition_targets
 from meal_planner.services import ApplianceService, GroceryService, InventoryService, PlannerService, ProfileService
 from meal_planner.storage import Database, InventoryItem, MealPlanDay
 
@@ -157,3 +158,20 @@ def test_grocery_purchase_flow_updates_inventory(tmp_path):
 
         purchased_item = session.query(InventoryItem).filter(InventoryItem.name == first_row["item"].ingredient_name).one()
         assert purchased_item.quantity >= first_row["item"].quantity
+
+
+def test_workouts_per_week_adds_average_training_calories(tmp_path):
+    database = Database(tmp_path / "workouts.db")
+    database.initialize()
+
+    with database.session() as session:
+        profile = ProfileService(session).get_profile()
+
+        profile.workouts_per_week = 0
+        rest_day_average = compute_nutrition_targets(profile)
+
+        profile.workouts_per_week = 4
+        training_week_average = compute_nutrition_targets(profile)
+
+        assert training_week_average.calories > rest_day_average.calories
+        assert training_week_average.carbs_g > rest_day_average.carbs_g

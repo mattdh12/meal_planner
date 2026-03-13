@@ -5,6 +5,7 @@
     "sex": "male",
     "current_weight_lb": 175.0,
     "goal_weight_lb": 188.0,
+    "workouts_per_week": 4,
     "fitness_goal": "Gain 10 to 15 pounds of muscle with simple, practical meals.",
     "shopping_frequency_days": 7,
     "preferred_store": "Wegmans",

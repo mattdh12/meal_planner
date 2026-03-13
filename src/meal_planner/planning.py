@@ -23,7 +23,9 @@ def compute_nutrition_targets(profile: UserProfile) -> NutritionTargets:
     goal_weight = profile.goal_weight_lb or current_weight
     base_calories = int(current_weight * 15)
     calorie_surplus = 300 if goal_weight > current_weight else 0
-    calories = base_calories + calorie_surplus
+    workouts_per_week = max(0, getattr(profile, "workouts_per_week", 0) or 0)
+    activity_calories = round((min(workouts_per_week, 14) * 250) / 7)
+    calories = base_calories + calorie_surplus + activity_calories
     protein = round(goal_weight * 0.9)
     fat = max(60, round(current_weight * 0.35))
     carbs = max(120, round((calories - (protein * 4 + fat * 9)) / 4))

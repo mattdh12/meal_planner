@@ -44,14 +44,19 @@
       </div>
       <div class="grid two">
         <label>
+          Workouts per week
+          <input name="workouts_per_week" type="number" min="0" max="14" value="{{ profile.workouts_per_week }}">
+          <p class="muted tiny">Used as a simple weekly activity bump for calorie planning.</p>
+        </label>
+        <label>
           Leftovers cap
           <input name="leftovers_cap" type="number" value="{{ profile.leftovers_cap }}">
         </label>
-        <label>
-          Preferred store
-          <input name="preferred_store" value="{{ profile.preferred_store }}">
-        </label>
       </div>
+      <label>
+        Preferred store
+        <input name="preferred_store" value="{{ profile.preferred_store }}">
+      </label>
       <div class="grid two">
         <label>
           Breakfast prep max

@@ -6,7 +6,20 @@ from contextlib import contextmanager
 from datetime import UTC, date, datetime
 from pathlib import Path
 
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, create_engine
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    create_engine,
+    inspect,
+    text,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship, sessionmaker
 
 from meal_planner.domain import InventoryEventType, InventoryItemType, InventoryLocation, MealSlot
@@ -30,6 +43,7 @@ class UserProfile(Base):
     sex: Mapped[str] = mapped_column(String(20), default="male")
     current_weight_lb: Mapped[float] = mapped_column(Float, default=175.0)
     goal_weight_lb: Mapped[float] = mapped_column(Float, default=188.0)
+    workouts_per_week: Mapped[int] = mapped_column(Integer, default=4)
     fitness_goal: Mapped[str] = mapped_column(String(200), default="Gain 10 to 15 pounds of muscle.")
     shopping_frequency_days: Mapped[int] = mapped_column(Integer, default=7)
     preferred_store: Mapped[str] = mapped_column(String(80), default="Wegmans")
@@ -267,10 +281,24 @@ class Database:
 
     def initialize(self) -> None:
         Base.metadata.create_all(self.engine)
+        self._ensure_schema_updates()
         with self.session() as session:
             if session.query(UserProfile).count() == 0:
                 seed_database(session)
             sync_seed_reference_data(session)
+
+    def _ensure_schema_updates(self) -> None:
+        inspector = inspect(self.engine)
+        table_names = set(inspector.get_table_names())
+        if "user_profiles" not in table_names:
+            return
+
+        profile_columns = {column["name"] for column in inspector.get_columns("user_profiles")}
+        with self.engine.begin() as connection:
+            if "workouts_per_week" not in profile_columns:
+                connection.execute(
+                    text("ALTER TABLE user_profiles ADD COLUMN workouts_per_week INTEGER NOT NULL DEFAULT 4")
+                )
 
 
 def load_seed_data(path: Path = SEED_DATA_PATH) -> dict:
