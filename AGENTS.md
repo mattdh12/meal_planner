@@ -6,6 +6,7 @@ The long-term goal is to turn this into a simple app I can use on my phone for p
 
 ## Stack
 - Python
+- Prefer Python 3.12 for the local project environment
 - Jupyter Notebook may be used for exploration and development
 - Other tools: TBD
 
@@ -15,7 +16,7 @@ The long-term goal is to turn this into a simple app I can use on my phone for p
 - Install dependencies: `pip install -r requirements.txt`
 - Run app: TBD
 - Run tests: `pytest`
-- Start notebook: `jupyter lab`
+- Start notebook: `.venv\Scripts\jupyter-lab.exe`
 
 ## Codex Working Style
 - Explain things in beginner-friendly language.
