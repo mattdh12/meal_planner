@@ -12,6 +12,8 @@ def test_main_screens_load(tmp_path):
     for path in ["/today", "/plans/week", "/inventory", "/recipes", "/groceries", "/profile", "/feedback"]:
         response = client.get(path)
         assert response.status_code == 200
+    today_response = client.get("/today")
+    assert "/recipes/" in today_response.text
 
 
 def test_inventory_adjust_route_redirects(tmp_path):

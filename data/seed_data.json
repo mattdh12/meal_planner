@@ -77,7 +77,8 @@
       "has_carb_component": true,
       "has_healthy_fat_component": false,
       "has_vegetable_component": false,
-      "instructions": "Combine yogurt, berries, granola, and honey in a bowl.",
+      "instructions": "Add the Greek yogurt to a bowl.\nLet the frozen berries sit for 3 to 5 minutes so they soften a little.\nSpoon the berries over the yogurt.\nSprinkle the granola on top.\nDrizzle the honey over everything and eat right away.",
+      "notes": "If you want more flavor, add a pinch of cinnamon. If the berries are too icy, microwave them for 10 to 15 seconds first.",
       "ingredients": [
         { "name": "Greek yogurt", "quantity": 1.5, "unit": "cup" },
         { "name": "Frozen berries", "quantity": 1.0, "unit": "cup" },
@@ -98,7 +99,8 @@
       "protein_g": 36,
       "carbs_g": 52,
       "fat_g": 12,
-      "instructions": "Mix oats, milk, protein powder, chia seeds, and berries. Chill overnight.",
+      "instructions": "Add the oats, milk, protein powder, and chia seeds to a jar or container.\nStir well until the protein powder is fully mixed in and there are no dry clumps.\nStir in the berries.\nCover the container and place it in the refrigerator overnight.\nIn the morning, stir once more and eat it cold.",
+      "notes": "If you want it sweeter, mix in a small drizzle of honey. If it looks too thick in the morning, add a splash of milk and stir again.",
       "ingredients": [
         { "name": "Rolled oats", "quantity": 0.75, "unit": "cup" },
         { "name": "Milk", "quantity": 1.0, "unit": "cup" },
@@ -120,7 +122,8 @@
       "protein_g": 34,
       "carbs_g": 40,
       "fat_g": 14,
-      "instructions": "Blend banana, milk, peanut butter, and protein powder.",
+      "instructions": "Break the banana into smaller pieces and place it in the blender.\nAdd the milk, peanut butter, and protein powder.\nBlend for 20 to 30 seconds until smooth.\nStop and scrape down the sides if powder is stuck.\nPour into a glass and drink right away.",
+      "notes": "If the smoothie is too thick, add a little more milk. If you want it colder, add a few ice cubes before blending.",
       "ingredients": [
         { "name": "Banana", "quantity": 1.0, "unit": "count" },
         { "name": "Milk", "quantity": 1.0, "unit": "cup" },
@@ -142,7 +145,8 @@
       "protein_g": 38,
       "carbs_g": 46,
       "fat_g": 18,
-      "instructions": "Fill a wrap with turkey, hummus, spinach, and seasoning.",
+      "instructions": "Lay the wrap flat on a plate or cutting board.\nSpread the hummus across the middle of the wrap.\nAdd the turkey slices in an even layer.\nAdd the spinach on top.\nSprinkle on the seasoning blend, plus a pinch of salt and pepper if you want more flavor.\nRoll the wrap tightly, cut it in half, and eat.",
+      "notes": "A simple seasoning combo here is a light shake of garlic powder, salt, and pepper. Do not overfill the wrap or it will tear.",
       "ingredients": [
         { "name": "Turkey slices", "quantity": 6.0, "unit": "oz" },
         { "name": "Whole wheat wrap", "quantity": 1.0, "unit": "count" },
@@ -164,7 +168,8 @@
       "protein_g": 30,
       "carbs_g": 34,
       "fat_g": 16,
-      "instructions": "Pair tuna, crackers, spinach, and an apple for a no-cook lunch.",
+      "instructions": "Open the tuna packet and place it on a plate or in a bowl.\nSeason the tuna with a pinch of salt, pepper, or garlic powder if you want extra flavor.\nPut the crackers on the plate.\nAdd the spinach on the side.\nWash the apple and serve it with the plate.",
+      "notes": "If you want the spinach to taste better, add a tiny pinch of salt and pepper or dip a few bites in a little sauce you already have.",
       "ingredients": [
         { "name": "Tuna packet", "quantity": 1.0, "unit": "count" },
         { "name": "Crackers", "quantity": 1.0, "unit": "serving" },
@@ -185,7 +190,8 @@
       "protein_g": 34,
       "carbs_g": 52,
       "fat_g": 18,
-      "instructions": "Microwave a potato and top with cottage cheese, spinach, and shredded cheese.",
+      "instructions": "Wash the potato and poke it several times with a fork.\nPlace it on a microwave-safe plate and microwave for 4 to 5 minutes.\nFlip it over and microwave 3 to 5 more minutes until it feels soft when squeezed with a towel.\nCut the potato open carefully.\nTop it with cottage cheese, spinach, and shredded cheese.\nMicrowave for 20 to 30 seconds more if you want the cheese to melt.",
+      "notes": "Add salt, pepper, and garlic powder on top to make this taste much better. If the potato is still firm in the middle, microwave it 1 minute at a time until soft.",
       "ingredients": [
         { "name": "Microwave potato", "quantity": 1.0, "unit": "count" },
         { "name": "Cottage cheese", "quantity": 1.0, "unit": "cup" },
@@ -207,7 +213,8 @@
       "protein_g": 22,
       "carbs_g": 24,
       "fat_g": 8,
-      "instructions": "Top cottage cheese with berries and honey.",
+      "instructions": "Spoon the cottage cheese into a bowl.\nAdd the berries on top.\nDrizzle with honey.\nStir if you want everything mixed together, or eat it layered.",
+      "notes": "If the berries are very frozen, let them sit for a few minutes first so the snack is easier to eat.",
       "ingredients": [
         { "name": "Cottage cheese", "quantity": 1.0, "unit": "cup" },
         { "name": "Frozen berries", "quantity": 0.5, "unit": "cup" },
@@ -227,7 +234,8 @@
       "protein_g": 29,
       "carbs_g": 28,
       "fat_g": 7,
-      "instructions": "Shake protein powder with milk and pair with rice cakes.",
+      "instructions": "Add the milk and protein powder to a shaker bottle.\nClose the lid tightly.\nShake for 15 to 20 seconds until smooth.\nPour into a glass or drink from the bottle.\nEat the rice cakes on the side.",
+      "notes": "If you want more flavor on the rice cakes, spread a little peanut butter on top.",
       "ingredients": [
         { "name": "Protein powder", "quantity": 1.0, "unit": "scoop" },
         { "name": "Milk", "quantity": 1.0, "unit": "cup" },
@@ -247,7 +255,8 @@
       "protein_g": 9,
       "carbs_g": 26,
       "fat_g": 16,
-      "instructions": "Pair an apple with a serving of trail mix.",
+      "instructions": "Wash the apple.\nPut one serving of trail mix into a bowl or small container.\nEat the apple with the trail mix on the side.",
+      "notes": "This one is intentionally simple. Use it on busy days when you want something instant.",
       "ingredients": [
         { "name": "Apple", "quantity": 1.0, "unit": "count" },
         { "name": "Trail mix", "quantity": 1.0, "unit": "serving" }
@@ -270,7 +279,8 @@
       "has_carb_component": true,
       "has_healthy_fat_component": true,
       "has_vegetable_component": true,
-      "instructions": "Season chicken, air fry it, microwave broccoli, and serve with rice.",
+      "instructions": "If the chicken is frozen, move it to the fridge the night before so it can thaw.\nPat the chicken dry with a paper towel.\nRub the chicken with olive oil, then season it with the seasoning blend, 1 teaspoon garlic powder, 1/2 teaspoon salt, and 1/2 teaspoon pepper.\nPreheat the air fryer to 380 F.\nPlace the chicken in the air fryer basket and cook for 10 minutes.\nFlip the chicken and cook 5 to 8 more minutes, until the inside reaches 165 F.\nPut the broccoli in a microwave-safe bowl with a splash of water, cover loosely, and microwave 3 to 4 minutes until tender.\nWarm the rice in the microwave for 1 to 2 minutes.\nSlice the chicken and serve it over the rice with the broccoli.",
+      "notes": "If you do not have a thermometer, cut into the thickest part of the chicken and make sure it is fully white inside with no pink. Add more salt and pepper after cooking if it tastes flat.",
       "ingredients": [
         { "name": "Chicken breast", "quantity": 1.0, "unit": "lb" },
         { "name": "Cooked rice", "quantity": 2.0, "unit": "cup" },
@@ -297,7 +307,8 @@
       "has_carb_component": true,
       "has_healthy_fat_component": false,
       "has_vegetable_component": true,
-      "instructions": "Cook chicken in salsa, then serve with rice, beans, and vegetables.",
+      "instructions": "If the chicken is frozen, move it to the fridge the night before.\nPlace the chicken in the Crock Pot.\nSeason it with 1 teaspoon garlic powder, 1/2 teaspoon salt, and 1/2 teaspoon pepper.\nPour the salsa over the chicken.\nCook on low for 6 to 7 hours or on high for 3 to 4 hours, until the chicken shreds easily.\nUse two forks to shred the chicken directly in the sauce.\nWarm the black beans in the microwave for about 1 minute.\nCook or warm the mixed vegetables until hot.\nWarm the rice.\nServe the salsa chicken over rice with black beans and vegetables.",
+      "notes": "Taste the chicken after shredding. If it needs more flavor, add another pinch of salt, pepper, or garlic powder. This is a good beginner dinner because the slow cooker does most of the work.",
       "ingredients": [
         { "name": "Chicken breast", "quantity": 1.0, "unit": "lb" },
         { "name": "Salsa", "quantity": 1.0, "unit": "cup" },
@@ -324,7 +335,8 @@
       "has_carb_component": true,
       "has_healthy_fat_component": true,
       "has_vegetable_component": true,
-      "instructions": "Roast sweet potatoes and meatballs, then serve with broccoli and avocado.",
+      "instructions": "Preheat the oven to 425 F.\nWash the sweet potatoes and cut them into small cubes.\nToss the sweet potatoes with olive oil, 1 teaspoon garlic powder, 1/2 teaspoon salt, and 1/2 teaspoon pepper.\nSpread the sweet potatoes on a sheet pan.\nAdd the turkey meatballs to the same pan, leaving a little space around them.\nBake for 20 to 25 minutes, stirring the potatoes once halfway through.\nWhile they bake, cook the broccoli until tender using the microwave or stovetop.\nCut the avocado in half, remove the pit, and slice or scoop out the flesh.\nServe the meatballs with the roasted sweet potatoes, broccoli, and avocado.",
+      "notes": "If the sweet potatoes still feel firm, keep roasting them in 3 minute bursts until tender. You can finish the plate with a little extra salt and pepper after everything is cooked.",
       "ingredients": [
         { "name": "Turkey meatballs", "quantity": 8.0, "unit": "count" },
         { "name": "Sweet potato", "quantity": 2.0, "unit": "count" },

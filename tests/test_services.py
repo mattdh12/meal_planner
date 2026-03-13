@@ -71,3 +71,17 @@ def test_unknown_appliance_can_be_saved_for_future_plans(tmp_path):
 
         assert appliance.name == "Instant Pot"
         assert appliance.has_appliance is False
+
+
+def test_prep_tasks_are_filtered_to_the_due_date(tmp_path):
+    database = Database(tmp_path / "prep_tasks.db")
+    database.initialize()
+
+    with database.session() as session:
+        planner = PlannerService(session)
+        planner.generate_week_plan(start_of_week(date.today()), regenerate=True)
+        tasks = planner.prep_tasks_for_date(date.today())
+
+        assert tasks
+        assert all(task.due_date == date.today() for task in tasks)
+        assert all(date.today().strftime("%A") in task.description for task in tasks)

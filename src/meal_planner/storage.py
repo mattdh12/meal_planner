@@ -270,6 +270,7 @@ class Database:
         with self.session() as session:
             if session.query(UserProfile).count() == 0:
                 seed_database(session)
+            sync_seed_recipe_content(session)
 
 
 def load_seed_data(path: Path = SEED_DATA_PATH) -> dict:
@@ -345,4 +346,17 @@ def seed_database(session: Session) -> None:
     for supplement_data in seed_data["supplements"]:
         session.add(Supplement(**supplement_data))
 
+    session.flush()
+
+
+def sync_seed_recipe_content(session: Session) -> None:
+    seed_data = load_seed_data()
+    recipe_rows = {row["name"]: row for row in seed_data.get("recipes", [])}
+    recipes = session.query(Recipe).all()
+    for recipe in recipes:
+        seed_recipe = recipe_rows.get(recipe.name)
+        if seed_recipe is None:
+            continue
+        recipe.instructions = seed_recipe.get("instructions", recipe.instructions)
+        recipe.notes = seed_recipe.get("notes", recipe.notes)
     session.flush()

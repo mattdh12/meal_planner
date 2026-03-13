@@ -9,7 +9,22 @@
     <span class="pill">{{ recipe.meal_slot|title }}</span>
     <h2>{{ recipe.name }}</h2>
     <p class="muted">Prep {{ recipe.prep_minutes }}m | Cook {{ recipe.cook_minutes }}m | Servings {{ recipe.servings }} | Leftovers {{ recipe.leftover_servings }}</p>
-    <p>{{ recipe.instructions }}</p>
+    <div class="instruction-block">
+      <p class="eyebrow">Step by step</p>
+      <ol class="step-list">
+        {% for step in recipe.instructions.splitlines() %}
+        {% if step.strip() %}
+        <li>{{ step }}</li>
+        {% endif %}
+        {% endfor %}
+      </ol>
+    </div>
+    {% if recipe.notes %}
+    <div class="callout">
+      <strong>Seasoning and beginner notes</strong>
+      <p>{{ recipe.notes }}</p>
+    </div>
+    {% endif %}
     <div class="callout">
       <strong>Macros</strong>
       <p>{{ recipe.calories }} kcal | Protein {{ recipe.protein_g }}g | Carbs {{ recipe.carbs_g }}g | Fat {{ recipe.fat_g }}g</p>
@@ -26,14 +41,16 @@
       </li>
       {% endfor %}
     </ul>
-    <p class="muted tiny">
-      Appliances:
-      {% for appliance in recipe.appliances %}
-      {{ appliance.appliance_name }}{% if not loop.last %}, {% endif %}
-      {% else %}
-      none
-      {% endfor %}
-    </p>
+    <div class="appliance-stack">
+      <p class="eyebrow">Appliances</p>
+      <div class="badge-row">
+        {% for appliance in recipe.appliances %}
+        <span class="pill">{{ appliance.appliance_name }}</span>
+        {% else %}
+        <span class="muted tiny">No appliance needed.</span>
+        {% endfor %}
+      </div>
+    </div>
   </article>
 </section>
 

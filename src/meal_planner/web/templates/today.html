@@ -16,12 +16,18 @@
     </div>
 
     <ul class="meal-list">
-      {% for meal in overview.day.meals|sort(attribute='meal_slot') %}
+      {% for meal in overview.day.meals %}
       <li class="meal-item">
         <header>
           <div>
             <span class="pill">{{ meal.meal_slot|title }}</span>
+            {% set has_recipe_details = meal.recipe_id and meal.recipe and ((meal.recipe.prep_minutes + meal.recipe.cook_minutes) > 0 or '\n' in meal.recipe.instructions or meal.recipe.notes) %}
+            {% if has_recipe_details %}
+            <a class="meal-title-link" href="/recipes/{{ meal.recipe_id }}">{{ meal.title }}</a>
+            <a class="tiny-link" href="/recipes/{{ meal.recipe_id }}">Open step-by-step instructions</a>
+            {% else %}
             <p class="meal-title">{{ meal.title }}</p>
+            {% endif %}
             <p class="muted tiny">{{ meal.notes or "Planned around your current rules and inventory." }}</p>
           </div>
           {% if meal.recipe_id and not meal.completed %}
@@ -55,18 +61,18 @@
     <div class="section-heading">
       <div>
         <p class="eyebrow">Prep reminders</p>
-        <h2>What to do next</h2>
+        <h2>Do these today</h2>
       </div>
     </div>
     <ul class="simple-list">
-      {% for task in overview.day.prep_tasks %}
+      {% for task in prep_tasks %}
       <li class="meal-item">
-        <strong>{{ task.due_date.strftime("%a") }}</strong>
+        <span class="pill">Today</span>
         <p>{{ task.description }}</p>
       </li>
       {% else %}
       <li class="meal-item">
-        <p>No extra prep tasks today. You are set.</p>
+        <p>No prep reminders for today. You are set.</p>
       </li>
       {% endfor %}
     </ul>

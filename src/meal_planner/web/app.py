@@ -64,11 +64,13 @@ def create_app(database_path: Path | None = None) -> FastAPI:
             feedback_service = FeedbackService(session, app.state.ai_adapter)
             appliance_service = ApplianceService(session)
             overview = planner.today_overview(date.today())
+            prep_tasks = planner.prep_tasks_for_date(date.today())
             grocery_list = grocery_service.get_weekly_list(start_of_week(date.today()))
             context = _base_context(request, overview["profile"], len(appliance_service.unresolved()))
             context.update(
                 {
                     "overview": overview,
+                    "prep_tasks": prep_tasks,
                     "grocery_list": grocery_list,
                     "recent_events": inventory_service.recent_events(),
                     "suggestions": feedback_service.dashboard_context()["suggestions"],

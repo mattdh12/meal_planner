@@ -337,6 +337,16 @@ class PlannerService:
             .one()
         )
 
+    def prep_tasks_for_date(self, target_date: date) -> list[PrepTask]:
+        return (
+            self.session.query(PrepTask)
+            .join(MealPlanDay, PrepTask.meal_plan_day_id == MealPlanDay.id)
+            .options(joinedload(PrepTask.day))
+            .filter(PrepTask.due_date == target_date)
+            .order_by(MealPlanDay.plan_date.asc(), PrepTask.id.asc())
+            .all()
+        )
+
     def generate_week_plan(self, week_start: date, regenerate: bool = False) -> list[MealPlanDay]:
         profile = self.profile_service.get_profile()
         if regenerate:
@@ -353,6 +363,7 @@ class PlannerService:
             MealPlanDay.plan_date < week_start + timedelta(days=7),
         ).count()
         if existing == 7 and not regenerate:
+            self._rebuild_prep_tasks(week_start)
             return (
                 self.session.query(MealPlanDay)
                 .options(joinedload(MealPlanDay.meals).joinedload(PlannedMeal.recipe), joinedload(MealPlanDay.prep_tasks))
@@ -458,11 +469,18 @@ class PlannerService:
                     .count()
                 ]
                 if freezer_items:
+                    due_date = day.plan_date - timedelta(days=1)
+                    due_day_text = due_date.strftime("%A")
+                    meal_day_text = day.plan_date.strftime("%A")
+                    slot_text = meal.meal_slot.title()
                     self.session.add(
                         PrepTask(
                             meal_plan_day_id=day.id,
-                            due_date=day.plan_date - timedelta(days=1),
-                            description=f"Defrost {', '.join(freezer_items)} for {meal.title} tomorrow.",
+                            due_date=due_date,
+                            description=(
+                                f"On {due_day_text} evening, move {', '.join(freezer_items)} from the freezer to the fridge "
+                                f"for tomorrow's {slot_text}: {meal.title} ({meal_day_text})."
+                            ),
                         )
                     )
         self.session.flush()
