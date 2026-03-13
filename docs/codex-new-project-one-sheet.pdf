@@ -1,0 +1,158 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 2850 >>
+stream
+BT
+/F1 22 Tf 48 744 Td
+(Codex New Project Workflow) Tj
+0 -15 Td
+/F1 11 Tf
+(A one-sheet checklist for starting clean and staying unblocked.) Tj
+0 -10 Td
+/F1 8 Tf
+0 -15 Td
+/F1 13 Tf
+(1. Open Clean) Tj
+0 -15 Td
+/F1 10 Tf
+(- Create a dedicated project folder and open that folder as the Codex) Tj
+0 -15 Td
+(workspace root.) Tj
+0 -15 Td
+(- Initialize git early so setup and first changes are tracked from day one.) Tj
+0 -10 Td
+/F1 6 Tf
+0 -15 Td
+/F1 13 Tf
+(2. Add Instructions) Tj
+0 -15 Td
+/F1 10 Tf
+(- Create AGENTS.md with the stack, package manager, key commands, and any) Tj
+0 -15 Td
+(guardrails.) Tj
+0 -15 Td
+(- Tell Codex what to avoid changing and whether you want it to ask before) Tj
+0 -15 Td
+(risky edits.) Tj
+0 -10 Td
+/F1 6 Tf
+0 -15 Td
+/F1 13 Tf
+(3. Build the Environment) Tj
+0 -15 Td
+/F1 10 Tf
+(- Create the local environment first: .venv, npm, pnpm, or whatever the) Tj
+0 -15 Td
+(project uses.) Tj
+0 -15 Td
+(- Install dependencies, keep secrets in .env files, and confirm the app starts) Tj
+0 -15 Td
+(locally.) Tj
+0 -10 Td
+/F1 6 Tf
+0 -15 Td
+/F1 13 Tf
+(4. Ask for an Inspection) Tj
+0 -15 Td
+/F1 10 Tf
+(- Start with: inspect the repo, explain the structure, and identify setup) Tj
+0 -15 Td
+(steps.) Tj
+0 -15 Td
+(- Use this before larger edits so you understand where work should happen.) Tj
+0 -10 Td
+/F1 6 Tf
+0 -15 Td
+/F1 13 Tf
+(5. Pick a Working Mode) Tj
+0 -15 Td
+/F1 10 Tf
+(- Small clear task: let Codex edit directly.) Tj
+0 -15 Td
+(- Bigger or unclear task: use plan mode for the approach, risks, and) Tj
+0 -15 Td
+(checkpoints.) Tj
+0 -10 Td
+/F1 6 Tf
+0 -15 Td
+/F1 13 Tf
+(6. Prompt Well) Tj
+0 -15 Td
+/F1 10 Tf
+(- Use: Goal + Constraints + Approach + Verification.) Tj
+0 -15 Td
+(- Example: Add X, avoid Y, inspect first, then run the smallest useful test.) Tj
+0 -10 Td
+/F1 6 Tf
+0 -15 Td
+/F1 13 Tf
+(7. Use Skills When They Fit) Tj
+0 -15 Td
+/F1 10 Tf
+(- Use a skill only when the task clearly matches a specialized workflow.) Tj
+0 -15 Td
+(- Do not force skills for normal coding tasks.) Tj
+0 -10 Td
+/F1 6 Tf
+0 -15 Td
+/F1 13 Tf
+(8. Work in Small Loops) Tj
+0 -15 Td
+/F1 10 Tf
+(- Make one focused change, run verification, review results, then continue.) Tj
+0 -15 Td
+(- Commit small milestones instead of waiting for a huge batch of edits.) Tj
+0 -10 Td
+/F1 6 Tf
+0 -15 Td
+/F1 13 Tf
+(9. Good Starter Prompts) Tj
+0 -15 Td
+/F1 10 Tf
+(- Inspect this repo and get the dev environment working.) Tj
+0 -15 Td
+(- Use plan mode and propose a small plan for [feature].) Tj
+0 -15 Td
+(- Make the change, run relevant verification, and summarize what changed.) Tj
+0 -10 Td
+/F1 6 Tf
+0 -15 Td
+/F1 13 Tf
+(10. Default Workflow) Tj
+0 -15 Td
+/F1 10 Tf
+(- Create folder -> Open in Codex -> Init git -> Add AGENTS.md -> Create env) Tj
+0 -15 Td
+(- Install deps -> Run app -> Ask Codex to inspect -> Use plan mode for first) Tj
+0 -15 Td
+(real feature) Tj
+0 -10 Td
+/F1 6 Tf
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000003143 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+3213
+%%EOF
