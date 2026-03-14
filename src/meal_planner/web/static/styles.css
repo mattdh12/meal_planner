@@ -212,6 +212,13 @@ h3 {
   align-items: flex-start;
 }
 
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+
 .meal-title {
   margin: 0.22rem 0 0.1rem;
   font-size: 0.9rem;
@@ -248,6 +255,12 @@ h3 {
   border-radius: var(--radius);
   padding: 0.72rem;
   border: 1px solid rgba(120, 174, 248, 0.14);
+}
+
+.error-callout {
+  margin-top: 0.85rem;
+  background: linear-gradient(135deg, rgba(208, 97, 97, 0.18), rgba(126, 35, 35, 0.12));
+  border-color: rgba(208, 97, 97, 0.25);
 }
 
 .shopping-note {

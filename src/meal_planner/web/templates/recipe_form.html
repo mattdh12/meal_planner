@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}{{ "Edit Recipe" if recipe else "New Recipe" }} | Meal Planner{% endblock %}
+
+{% block content %}
+<section class="card">
+  <div class="row-between">
+    <div>
+      <p class="eyebrow">{{ "Edit recipe" if recipe else "New recipe" }}</p>
+      <h2>{{ recipe.name if recipe else "Create a recipe the planner can use" }}</h2>
+      <p class="muted">This form saves directly into the app database, so you do not need to edit seed files.</p>
+    </div>
+    <a class="button-link secondary" href="{% if recipe %}/recipes/{{ recipe.id }}{% else %}/recipes{% endif %}">
+      {% if recipe %}Back to recipe{% else %}Back to recipes{% endif %}
+    </a>
+  </div>
+  {% if error_message %}
+  <div class="callout error-callout">
+    <strong>Could not save recipe</strong>
+    <p>{{ error_message }}</p>
+  </div>
+  {% endif %}
+</section>
+
+<section class="grid two">
+  <article class="card">
+    <form method="post" action="{% if recipe %}/recipes/{{ recipe.id }}/edit{% else %}/recipes/new{% endif %}">
+      <div class="grid two">
+        <label>
+          Recipe name
+          <input type="text" name="name" value="{{ form_values.name }}" required>
+        </label>
+        <label>
+          Meal slot
+          <select name="meal_slot">
+            {% for slot in ["breakfast", "lunch", "snack", "dinner"] %}
+            <option value="{{ slot }}" {% if form_values.meal_slot == slot %}selected{% endif %}>{{ slot|title }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+
+      <div class="grid three">
+        <label>
+          Prep minutes
+          <input type="number" min="0" name="prep_minutes" value="{{ form_values.prep_minutes }}">
+        </label>
+        <label>
+          Cook minutes
+          <input type="number" min="0" name="cook_minutes" value="{{ form_values.cook_minutes }}">
+        </label>
+        <label>
+          Base servings
+          <input type="number" min="1" name="servings" value="{{ form_values.servings }}">
+        </label>
+      </div>
+
+      <div class="grid three">
+        <label>
+          Leftover servings
+          <input type="number" min="0" name="leftover_servings" value="{{ form_values.leftover_servings }}">
+        </label>
+        <label>
+          Simplicity score
+          <input type="number" min="1" max="5" name="simplicity_score" value="{{ form_values.simplicity_score }}">
+        </label>
+        <label>
+          Pots and pans score
+          <input type="number" min="1" max="5" name="pots_pans_score" value="{{ form_values.pots_pans_score }}">
+        </label>
+      </div>
+
+      <div class="grid two">
+        <label>
+          Calories
+          <input type="number" min="0" name="calories" value="{{ form_values.calories }}">
+        </label>
+        <label>
+          Protein (g)
+          <input type="number" min="0" name="protein_g" value="{{ form_values.protein_g }}">
+        </label>
+      </div>
+
+      <div class="grid two">
+        <label>
+          Carbs (g)
+          <input type="number" min="0" name="carbs_g" value="{{ form_values.carbs_g }}">
+        </label>
+        <label>
+          Fat (g)
+          <input type="number" min="0" name="fat_g" value="{{ form_values.fat_g }}">
+        </label>
+      </div>
+
+      <div class="grid two">
+        <label class="checkbox-row">
+          <input type="checkbox" name="has_protein_component" {% if form_values.has_protein_component %}checked{% endif %}>
+          Has protein component
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" name="has_carb_component" {% if form_values.has_carb_component %}checked{% endif %}>
+          Has carb component
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" name="has_healthy_fat_component" {% if form_values.has_healthy_fat_component %}checked{% endif %}>
+          Has healthy fat component
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" name="has_vegetable_component" {% if form_values.has_vegetable_component %}checked{% endif %}>
+          Has vegetable component
+        </label>
+      </div>
+
+      <label>
+        Step-by-step instructions
+        <textarea name="instructions" placeholder="One step per line.">{{ form_values.instructions }}</textarea>
+      </label>
+
+      <label>
+        Notes
+        <textarea name="notes" placeholder="Seasoning notes, shortcuts, reminders, beginner tips.">{{ form_values.notes }}</textarea>
+      </label>
+
+      <label>
+        Ingredients
+        <textarea name="ingredient_lines" placeholder="Greek yogurt | 1.5 | cup&#10;Frozen berries | 1 | cup&#10;Granola | 0.5 | cup">{{ form_values.ingredient_lines }}</textarea>
+      </label>
+      <p class="muted tiny">Format each line as: ingredient name | quantity | unit</p>
+
+      <label>
+        Appliances
+        <textarea name="appliance_lines" placeholder="Microwave&#10;Vitamix">{{ form_values.appliance_lines }}</textarea>
+      </label>
+      <p class="muted tiny">One appliance per line. Leave blank if none are required.</p>
+
+      <div class="row-actions">
+        <button type="submit">{% if recipe %}Save recipe changes{% else %}Create recipe{% endif %}</button>
+        <a class="button-link secondary" href="{% if recipe %}/recipes/{{ recipe.id }}{% else %}/recipes{% endif %}">Cancel</a>
+      </div>
+    </form>
+  </article>
+
+  <article class="card">
+    <p class="eyebrow">Reference</p>
+    <h3>Known ingredients</h3>
+    <p class="muted tiny">You can type a new ingredient name too. If it does not exist yet, the app will create it.</p>
+    <div class="badge-row">
+      {% for ingredient in available_ingredients %}
+      <span class="pill">{{ ingredient.name }}</span>
+      {% endfor %}
+    </div>
+
+    <div class="appliance-stack">
+      <h3>Known appliances</h3>
+      <div class="badge-row">
+        {% for appliance in available_appliances %}
+        <span class="pill">{{ appliance.name }}</span>
+        {% endfor %}
+      </div>
+    </div>
+  </article>
+</section>
+{% endblock %}

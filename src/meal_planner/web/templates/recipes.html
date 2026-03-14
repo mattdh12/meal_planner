@@ -4,9 +4,14 @@
 
 {% block content %}
 <section class="card">
-  <p class="eyebrow">Recipe library</p>
-  <h2>Seed meals and future candidates</h2>
-  <p class="muted">This is the reusable recipe catalog the planner scores against your rules, inventory, and feedback.</p>
+  <div class="row-between">
+    <div>
+      <p class="eyebrow">Recipe library</p>
+      <h2>Meals the planner can actually use</h2>
+      <p class="muted">This is the reusable recipe catalog the planner scores against your rules, inventory, and feedback.</p>
+    </div>
+    <a class="button-link" href="/recipes/new">Add recipe</a>
+  </div>
 </section>
 
 <section class="grid two">
@@ -20,7 +25,7 @@
       <div class="muted tiny">{{ recipe.calories }} kcal</div>
     </div>
     <p class="muted">Prep {{ recipe.prep_minutes }}m | Cook {{ recipe.cook_minutes }}m | Protein {{ recipe.protein_g }}g</p>
-    <p>{{ recipe.instructions }}</p>
+    <p>{{ recipe.instructions.splitlines()[0] if recipe.instructions else "No instructions yet." }}</p>
     <p class="muted tiny">
       Appliances:
       {% for appliance in recipe.appliances %}
@@ -29,6 +34,10 @@
       none
       {% endfor %}
     </p>
+    <div class="row-actions">
+      <a class="tiny-link" href="/recipes/{{ recipe.id }}">View details</a>
+      <a class="tiny-link" href="/recipes/{{ recipe.id }}/edit">Edit recipe</a>
+    </div>
   </article>
   {% endfor %}
 </section>

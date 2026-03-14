@@ -6,8 +6,13 @@
 {% if recipe %}
 <section class="grid two">
   <article class="card">
-    <span class="pill">{{ recipe.meal_slot|title }}</span>
-    <h2>{{ recipe.name }}</h2>
+    <div class="row-between">
+      <div>
+        <span class="pill">{{ recipe.meal_slot|title }}</span>
+        <h2>{{ recipe.name }}</h2>
+      </div>
+      <a class="button-link secondary" href="/recipes/{{ recipe.id }}/edit">Edit recipe</a>
+    </div>
     <p class="muted">Prep {{ recipe.prep_minutes }}m | Cook {{ recipe.cook_minutes }}m | Servings {{ recipe.servings }} | Leftovers {{ recipe.leftover_servings }}</p>
     <div class="instruction-block">
       <p class="eyebrow">Step by step</p>

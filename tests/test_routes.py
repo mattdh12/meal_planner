@@ -3,7 +3,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from meal_planner.storage import Recipe
+from meal_planner.storage import MealPlanDay, PlannedMeal, Recipe
 from meal_planner.web.app import create_app
 
 
@@ -136,3 +136,93 @@ def test_profile_appliance_add_and_remove_routes_redirect(tmp_path):
         follow_redirects=False,
     )
     assert remove_response.status_code == 303
+
+
+def test_recipe_create_route_saves_recipe_with_ingredients_and_appliances(tmp_path):
+    app = create_app(tmp_path / "recipe_create.db")
+    client = TestClient(app)
+
+    response = client.post(
+        "/recipes/new",
+        data={
+            "name": "Test Protein Oats",
+            "meal_slot": "breakfast",
+            "prep_minutes": "4",
+            "cook_minutes": "0",
+            "simplicity_score": "5",
+            "pots_pans_score": "1",
+            "servings": "1",
+            "leftover_servings": "0",
+            "calories": "510",
+            "protein_g": "35",
+            "carbs_g": "58",
+            "fat_g": "12",
+            "has_protein_component": "on",
+            "has_carb_component": "on",
+            "instructions": "Add oats.\nAdd protein.\nEat.",
+            "notes": "Simple breakfast.",
+            "ingredient_lines": "Rolled oats | 1 | cup\nProtein powder | 1 | scoop\nMilk | 1 | cup",
+            "appliance_lines": "Microwave",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    with app.state.database.session() as session:
+        recipe = session.query(Recipe).filter(Recipe.name == "Test Protein Oats").one()
+        assert recipe.meal_slot == "breakfast"
+        assert len(recipe.ingredients) == 3
+        assert [appliance.appliance_name for appliance in recipe.appliances] == ["Microwave"]
+
+
+def test_recipe_edit_route_updates_recipe_and_renames_planned_meals(tmp_path):
+    app = create_app(tmp_path / "recipe_edit.db")
+    client = TestClient(app)
+
+    with app.state.database.session() as session:
+        recipe = session.query(Recipe).filter(Recipe.name == "Fiber One Cereal Bowl").one()
+        breakfast_recipe_id = recipe.id
+        day = MealPlanDay(plan_date=date.today())
+        session.add(day)
+        session.flush()
+        session.add(
+            PlannedMeal(
+                meal_plan_day_id=day.id,
+                meal_slot="breakfast",
+                recipe_id=breakfast_recipe_id,
+                title=recipe.name,
+                planned_servings=1,
+            )
+        )
+
+    response = client.post(
+        f"/recipes/{breakfast_recipe_id}/edit",
+        data={
+            "name": "Fiber One Breakfast Bowl",
+            "meal_slot": "breakfast",
+            "prep_minutes": "1",
+            "cook_minutes": "0",
+            "simplicity_score": "5",
+            "pots_pans_score": "1",
+            "servings": "1",
+            "leftover_servings": "0",
+            "calories": "300",
+            "protein_g": "12",
+            "carbs_g": "48",
+            "fat_g": "6",
+            "has_carb_component": "on",
+            "instructions": "Pour cereal.\nAdd milk.\nEat.",
+            "notes": "Updated name.",
+            "ingredient_lines": "Fiber One Honey Clusters Cereal | 1.5 | cup\nMilk | 1 | cup",
+            "appliance_lines": "",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    with app.state.database.session() as session:
+        recipe = session.get(Recipe, breakfast_recipe_id)
+        assert recipe is not None
+        assert recipe.name == "Fiber One Breakfast Bowl"
+        planned_titles = {meal.title for meal in session.query(PlannedMeal).filter(PlannedMeal.recipe_id == breakfast_recipe_id).all()}
+        assert "Fiber One Breakfast Bowl" in planned_titles

@@ -46,12 +46,17 @@ from meal_planner.storage import (
     PlannedMeal,
     PrepTask,
     Recipe,
+    RecipeAppliance,
     RecipeFeedback,
     RecipeIngredient,
     Supplement,
     SupplementFeedback,
     UserProfile,
 )
+
+
+class RecipeValidationError(ValueError):
+    pass
 
 
 class ProfileService:
@@ -117,6 +122,12 @@ class RecipeService:
     def __init__(self, session: Session):
         self.session = session
 
+    @staticmethod
+    def _display_quantity(quantity: float) -> str:
+        if float(quantity).is_integer():
+            return str(int(quantity))
+        return f"{quantity:g}"
+
     def list_recipes(self) -> list[Recipe]:
         return (
             self.session.query(Recipe)
@@ -141,11 +152,173 @@ class RecipeService:
             .one_or_none()
         )
 
+    def list_ingredients(self) -> list[Ingredient]:
+        return self.session.query(Ingredient).order_by(Ingredient.name.asc()).all()
+
+    def ingredient_line_text(self, recipe: Recipe | None) -> str:
+        if recipe is None:
+            return ""
+        return "\n".join(
+            f"{row.ingredient.name} | {self._display_quantity(row.quantity)} | {row.unit}"
+            for row in recipe.ingredients
+        )
+
+    def appliance_line_text(self, recipe: Recipe | None) -> str:
+        if recipe is None:
+            return ""
+        return "\n".join(appliance.appliance_name for appliance in recipe.appliances)
+
     def recipe_options_by_slot(self) -> dict[str, list[Recipe]]:
         grouped: dict[str, list[Recipe]] = defaultdict(list)
         for recipe in self.list_recipes():
             grouped[recipe.meal_slot].append(recipe)
         return grouped
+
+    def upsert_recipe(
+        self,
+        payload: dict[str, Any],
+        ingredient_lines: str,
+        appliance_lines: str,
+        recipe_id: int | None = None,
+    ) -> Recipe:
+        name = str(payload.get("name") or "").strip()
+        if not name:
+            raise RecipeValidationError("Recipe name is required.")
+
+        recipe = self.session.get(Recipe, recipe_id) if recipe_id is not None else None
+        duplicate = (
+            self.session.query(Recipe)
+            .filter(func.lower(Recipe.name) == name.lower())
+            .one_or_none()
+        )
+        if duplicate is not None and (recipe is None or duplicate.id != recipe.id):
+            raise RecipeValidationError("A recipe with that name already exists.")
+
+        if recipe is None:
+            recipe = Recipe(name=name)
+            self.session.add(recipe)
+            self.session.flush()
+
+        recipe.name = name
+        recipe.meal_slot = str(payload.get("meal_slot") or MealSlot.DINNER.value)
+        recipe.prep_minutes = max(0, int(payload.get("prep_minutes") or 0))
+        recipe.cook_minutes = max(0, int(payload.get("cook_minutes") or 0))
+        recipe.simplicity_score = max(1, min(5, int(payload.get("simplicity_score") or 3)))
+        recipe.pots_pans_score = max(1, min(5, int(payload.get("pots_pans_score") or 2)))
+        recipe.servings = max(1, int(payload.get("servings") or 1))
+        recipe.leftover_servings = max(0, int(payload.get("leftover_servings") or 0))
+        recipe.calories = max(0, int(payload.get("calories") or 0))
+        recipe.protein_g = max(0, int(payload.get("protein_g") or 0))
+        recipe.carbs_g = max(0, int(payload.get("carbs_g") or 0))
+        recipe.fat_g = max(0, int(payload.get("fat_g") or 0))
+        recipe.has_protein_component = bool(payload.get("has_protein_component"))
+        recipe.has_carb_component = bool(payload.get("has_carb_component"))
+        recipe.has_healthy_fat_component = bool(payload.get("has_healthy_fat_component"))
+        recipe.has_vegetable_component = bool(payload.get("has_vegetable_component"))
+        recipe.instructions = str(payload.get("instructions") or "").strip()
+        recipe.notes = str(payload.get("notes") or "").strip()
+
+        parsed_ingredients = self._parse_ingredient_lines(ingredient_lines)
+        parsed_appliances = self._parse_appliance_lines(appliance_lines)
+
+        self.session.flush()
+        self.session.query(RecipeIngredient).filter(RecipeIngredient.recipe_id == recipe.id).delete()
+        self.session.query(RecipeAppliance).filter(RecipeAppliance.recipe_id == recipe.id).delete()
+        self.session.flush()
+
+        for ingredient_row in parsed_ingredients:
+            ingredient = self._get_or_create_ingredient(
+                ingredient_row["name"],
+                ingredient_row["unit"],
+            )
+            self.session.add(
+                RecipeIngredient(
+                    recipe_id=recipe.id,
+                    ingredient_id=ingredient.id,
+                    quantity=ingredient_row["quantity"],
+                    unit=ingredient_row["unit"],
+                )
+            )
+
+        for appliance_name in parsed_appliances:
+            self._ensure_appliance_exists(appliance_name)
+            self.session.add(RecipeAppliance(recipe_id=recipe.id, appliance_name=appliance_name))
+
+        self._sync_planned_meal_titles(recipe)
+        self.session.flush()
+        return recipe
+
+    def _parse_ingredient_lines(self, raw_text: str) -> list[dict[str, Any]]:
+        lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
+        if not lines:
+            raise RecipeValidationError("Add at least one ingredient line.")
+
+        parsed: list[dict[str, Any]] = []
+        seen_names: set[str] = set()
+        for line in lines:
+            parts = [part.strip() for part in line.split("|")]
+            if len(parts) != 3:
+                raise RecipeValidationError(
+                    "Each ingredient line must use: Ingredient name | quantity | unit"
+                )
+
+            name, quantity_text, unit = parts
+            if not name or not unit:
+                raise RecipeValidationError("Ingredient lines need a name and a unit.")
+            try:
+                quantity = float(quantity_text)
+            except ValueError as exc:
+                raise RecipeValidationError(f"Could not read quantity in ingredient line: {line}") from exc
+            if quantity <= 0:
+                raise RecipeValidationError("Ingredient quantities must be greater than zero.")
+
+            ingredient_key = name.lower()
+            if ingredient_key in seen_names:
+                raise RecipeValidationError(f"Ingredient appears more than once: {name}")
+            seen_names.add(ingredient_key)
+            parsed.append({"name": name, "quantity": quantity, "unit": unit})
+        return parsed
+
+    @staticmethod
+    def _parse_appliance_lines(raw_text: str) -> list[str]:
+        seen: set[str] = set()
+        appliances: list[str] = []
+        for line in raw_text.splitlines():
+            cleaned = line.strip()
+            if not cleaned:
+                continue
+            key = cleaned.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            appliances.append(cleaned)
+        return appliances
+
+    def _get_or_create_ingredient(self, name: str, unit: str) -> Ingredient:
+        ingredient = self.session.query(Ingredient).filter(func.lower(Ingredient.name) == name.lower()).one_or_none()
+        if ingredient is None:
+            ingredient = Ingredient(name=name, default_unit=unit, category="Pantry")
+            self.session.add(ingredient)
+            self.session.flush()
+        elif not ingredient.default_unit:
+            ingredient.default_unit = unit
+        return ingredient
+
+    def _ensure_appliance_exists(self, appliance_name: str) -> Appliance:
+        appliance = self.session.query(Appliance).filter(func.lower(Appliance.name) == appliance_name.lower()).one_or_none()
+        if appliance is None:
+            appliance = Appliance(name=appliance_name, has_appliance=None, is_known=False)
+            self.session.add(appliance)
+            self.session.flush()
+        return appliance
+
+    def _sync_planned_meal_titles(self, recipe: Recipe) -> None:
+        planned_meals = self.session.query(PlannedMeal).filter(PlannedMeal.recipe_id == recipe.id).all()
+        for planned_meal in planned_meals:
+            if planned_meal.uses_leftovers:
+                planned_meal.title = f"{recipe.name} leftovers"
+            else:
+                planned_meal.title = recipe.name
 
     def add_feedback(self, recipe_id: int, tasty_rating: int, ease_rating: int, notes: str) -> None:
         self.session.add(

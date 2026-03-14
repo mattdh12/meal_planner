@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -18,6 +18,7 @@ from meal_planner.services import (
     PlannerService,
     ProfileService,
     RecipeService,
+    RecipeValidationError,
 )
 from meal_planner.storage import Database, PlannedMeal
 
@@ -58,6 +59,56 @@ def _ordered_meals(meals: object) -> object:
     return sorted(meals, key=lambda meal: (slot_order.get(getattr(meal, "meal_slot", ""), 999), getattr(meal, "id", 0)))
 
 
+def _recipe_form_values(recipe=None, ingredient_lines: str = "", appliance_lines: str = "", form_data: dict | None = None) -> dict:
+    if form_data is not None:
+        return form_data
+    if recipe is None:
+        return {
+            "name": "",
+            "meal_slot": "dinner",
+            "prep_minutes": 10,
+            "cook_minutes": 0,
+            "simplicity_score": 3,
+            "pots_pans_score": 2,
+            "servings": 1,
+            "leftover_servings": 0,
+            "calories": 400,
+            "protein_g": 20,
+            "carbs_g": 40,
+            "fat_g": 15,
+            "has_protein_component": True,
+            "has_carb_component": True,
+            "has_healthy_fat_component": False,
+            "has_vegetable_component": False,
+            "instructions": "",
+            "notes": "",
+            "ingredient_lines": ingredient_lines,
+            "appliance_lines": appliance_lines,
+        }
+    return {
+        "name": recipe.name,
+        "meal_slot": recipe.meal_slot,
+        "prep_minutes": recipe.prep_minutes,
+        "cook_minutes": recipe.cook_minutes,
+        "simplicity_score": recipe.simplicity_score,
+        "pots_pans_score": recipe.pots_pans_score,
+        "servings": recipe.servings,
+        "leftover_servings": recipe.leftover_servings,
+        "calories": recipe.calories,
+        "protein_g": recipe.protein_g,
+        "carbs_g": recipe.carbs_g,
+        "fat_g": recipe.fat_g,
+        "has_protein_component": recipe.has_protein_component,
+        "has_carb_component": recipe.has_carb_component,
+        "has_healthy_fat_component": recipe.has_healthy_fat_component,
+        "has_vegetable_component": recipe.has_vegetable_component,
+        "instructions": recipe.instructions,
+        "notes": recipe.notes,
+        "ingredient_lines": ingredient_lines,
+        "appliance_lines": appliance_lines,
+    }
+
+
 def create_app(database_path: Path | None = None) -> FastAPI:
     app = FastAPI(title="Meal Planner", version="0.1.0")
     app.state.database = Database(database_path=database_path)
@@ -67,6 +118,36 @@ def create_app(database_path: Path | None = None) -> FastAPI:
     app.state.templates.env.filters["ordered_meals"] = _ordered_meals
     app.state.ai_adapter = AIPlannerAdapter()
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+    def _render_recipe_form(
+        request: Request,
+        recipe=None,
+        form_values: dict | None = None,
+        error_message: str | None = None,
+        status_code: int = 200,
+    ) -> object:
+        with app.state.database.session() as session:
+            recipe_service = RecipeService(session)
+            profile_service = ProfileService(session)
+            appliance_service = ApplianceService(session)
+            ingredient_lines = recipe_service.ingredient_line_text(recipe) if recipe is not None else ""
+            appliance_lines = recipe_service.appliance_line_text(recipe) if recipe is not None else ""
+            context = _base_context(request, profile_service.get_profile(), len(appliance_service.unresolved()))
+            context.update(
+                {
+                    "recipe": recipe,
+                    "form_values": _recipe_form_values(
+                        recipe=recipe,
+                        ingredient_lines=ingredient_lines,
+                        appliance_lines=appliance_lines,
+                        form_data=form_values,
+                    ),
+                    "error_message": error_message,
+                    "available_ingredients": recipe_service.list_ingredients(),
+                    "available_appliances": appliance_service.list_appliances(),
+                }
+            )
+            return app.state.templates.TemplateResponse(request, "recipe_form.html", context, status_code=status_code)
 
     @app.get("/")
     async def root() -> RedirectResponse:
@@ -195,6 +276,46 @@ def create_app(database_path: Path | None = None) -> FastAPI:
             context.update({"recipes": recipe_service.list_recipes()})
             return app.state.templates.TemplateResponse(request, "recipes.html", context)
 
+    @app.get("/recipes/new")
+    async def new_recipe(request: Request) -> object:
+        return _render_recipe_form(request)
+
+    @app.post("/recipes/new")
+    async def create_recipe(request: Request) -> object:
+        form = await request.form()
+        form_values = {
+            "name": str(form.get("name") or "").strip(),
+            "meal_slot": str(form.get("meal_slot") or "dinner"),
+            "prep_minutes": int(str(form.get("prep_minutes") or 0)),
+            "cook_minutes": int(str(form.get("cook_minutes") or 0)),
+            "simplicity_score": int(str(form.get("simplicity_score") or 3)),
+            "pots_pans_score": int(str(form.get("pots_pans_score") or 2)),
+            "servings": int(str(form.get("servings") or 1)),
+            "leftover_servings": int(str(form.get("leftover_servings") or 0)),
+            "calories": int(str(form.get("calories") or 0)),
+            "protein_g": int(str(form.get("protein_g") or 0)),
+            "carbs_g": int(str(form.get("carbs_g") or 0)),
+            "fat_g": int(str(form.get("fat_g") or 0)),
+            "has_protein_component": form.get("has_protein_component") is not None,
+            "has_carb_component": form.get("has_carb_component") is not None,
+            "has_healthy_fat_component": form.get("has_healthy_fat_component") is not None,
+            "has_vegetable_component": form.get("has_vegetable_component") is not None,
+            "instructions": str(form.get("instructions") or ""),
+            "notes": str(form.get("notes") or ""),
+            "ingredient_lines": str(form.get("ingredient_lines") or ""),
+            "appliance_lines": str(form.get("appliance_lines") or ""),
+        }
+        try:
+            with app.state.database.session() as session:
+                recipe = RecipeService(session).upsert_recipe(
+                    payload=form_values,
+                    ingredient_lines=form_values["ingredient_lines"],
+                    appliance_lines=form_values["appliance_lines"],
+                )
+            return RedirectResponse(url=f"/recipes/{recipe.id}", status_code=303)
+        except RecipeValidationError as exc:
+            return _render_recipe_form(request, form_values=form_values, error_message=str(exc), status_code=400)
+
     @app.get("/recipes/{recipe_id}")
     async def recipe_detail(recipe_id: int, request: Request) -> object:
         with app.state.database.session() as session:
@@ -202,6 +323,8 @@ def create_app(database_path: Path | None = None) -> FastAPI:
             profile_service = ProfileService(session)
             appliance_service = ApplianceService(session)
             recipe = recipe_service.get_recipe(recipe_id)
+            if recipe is None:
+                raise HTTPException(status_code=404)
             microwave_available = any(
                 appliance.name.lower() == "microwave" and appliance.has_appliance
                 for appliance in appliance_service.list_appliances()
@@ -214,6 +337,63 @@ def create_app(database_path: Path | None = None) -> FastAPI:
                 }
             )
             return app.state.templates.TemplateResponse(request, "recipe_detail.html", context)
+
+    @app.get("/recipes/{recipe_id}/edit")
+    async def edit_recipe(recipe_id: int, request: Request) -> object:
+        with app.state.database.session() as session:
+            recipe = RecipeService(session).get_recipe(recipe_id)
+        if recipe is None:
+            raise HTTPException(status_code=404)
+        return _render_recipe_form(request, recipe=recipe)
+
+    @app.post("/recipes/{recipe_id}/edit")
+    async def update_recipe(recipe_id: int, request: Request) -> object:
+        form = await request.form()
+        form_values = {
+            "name": str(form.get("name") or "").strip(),
+            "meal_slot": str(form.get("meal_slot") or "dinner"),
+            "prep_minutes": int(str(form.get("prep_minutes") or 0)),
+            "cook_minutes": int(str(form.get("cook_minutes") or 0)),
+            "simplicity_score": int(str(form.get("simplicity_score") or 3)),
+            "pots_pans_score": int(str(form.get("pots_pans_score") or 2)),
+            "servings": int(str(form.get("servings") or 1)),
+            "leftover_servings": int(str(form.get("leftover_servings") or 0)),
+            "calories": int(str(form.get("calories") or 0)),
+            "protein_g": int(str(form.get("protein_g") or 0)),
+            "carbs_g": int(str(form.get("carbs_g") or 0)),
+            "fat_g": int(str(form.get("fat_g") or 0)),
+            "has_protein_component": form.get("has_protein_component") is not None,
+            "has_carb_component": form.get("has_carb_component") is not None,
+            "has_healthy_fat_component": form.get("has_healthy_fat_component") is not None,
+            "has_vegetable_component": form.get("has_vegetable_component") is not None,
+            "instructions": str(form.get("instructions") or ""),
+            "notes": str(form.get("notes") or ""),
+            "ingredient_lines": str(form.get("ingredient_lines") or ""),
+            "appliance_lines": str(form.get("appliance_lines") or ""),
+        }
+        try:
+            with app.state.database.session() as session:
+                recipe_service = RecipeService(session)
+                recipe = recipe_service.upsert_recipe(
+                    payload=form_values,
+                    ingredient_lines=form_values["ingredient_lines"],
+                    appliance_lines=form_values["appliance_lines"],
+                    recipe_id=recipe_id,
+                )
+                GroceryService(session).generate_weekly_list(start_of_week(date.today()), regenerate=True)
+            return RedirectResponse(url=f"/recipes/{recipe.id}", status_code=303)
+        except RecipeValidationError as exc:
+            with app.state.database.session() as session:
+                recipe = RecipeService(session).get_recipe(recipe_id)
+            if recipe is None:
+                raise HTTPException(status_code=404)
+            return _render_recipe_form(
+                request,
+                recipe=recipe,
+                form_values=form_values,
+                error_message=str(exc),
+                status_code=400,
+            )
 
     @app.post("/recipes/{recipe_id}/feedback")
     async def recipe_feedback(recipe_id: int, request: Request) -> RedirectResponse:
