@@ -38,6 +38,10 @@ def _parse_week_start(raw_value: str | None) -> date:
     return start_of_week(date.today())
 
 
+def _clamp_int(value: int, minimum: int, maximum: int) -> int:
+    return max(minimum, min(maximum, value))
+
+
 def _base_context(request: Request, profile, unresolved_count: int) -> dict:
     return {
         "request": request,
@@ -557,12 +561,14 @@ def create_app(database_path: Path | None = None) -> FastAPI:
             grocery_service = GroceryService(session)
             profile_service = ProfileService(session)
             appliance_service = ApplianceService(session)
+            profile = profile_service.get_profile()
             grocery_list = grocery_service.get_weekly_list(week_start)
             shopping_rows = grocery_service.shopping_rows(week_start)
-            context = _base_context(request, profile_service.get_profile(), len(appliance_service.unresolved()))
+            context = _base_context(request, profile, len(appliance_service.unresolved()))
             context.update(
                 {
                     "week_start": week_start,
+                    "grocery_horizon_days": grocery_service.grocery_horizon_days(),
                     "grocery_list": grocery_list,
                     "shopping_rows": shopping_rows,
                     "distinct_item_count": len(grocery_list.items),
@@ -606,6 +612,7 @@ def create_app(database_path: Path | None = None) -> FastAPI:
             context.update(
                 {
                     "week_start": week_start,
+                    "grocery_horizon_days": grocery_service.grocery_horizon_days(),
                     "purchase_rows": grocery_service.purchase_rows(week_start),
                 }
             )
@@ -658,7 +665,7 @@ def create_app(database_path: Path | None = None) -> FastAPI:
             "goal_weight_lb": float(str(form.get("goal_weight_lb") or 0)),
             "workouts_per_week": int(str(form.get("workouts_per_week") or 0)),
             "fitness_goal": str(form.get("fitness_goal") or ""),
-            "shopping_frequency_days": int(str(form.get("shopping_frequency_days") or 7)),
+            "shopping_frequency_days": _clamp_int(int(str(form.get("shopping_frequency_days") or 7)), 1, 7),
             "preferred_store": str(form.get("preferred_store") or "Wegmans"),
             "leftovers_cap": int(str(form.get("leftovers_cap") or 1)),
             "breakfast_max_prep_minutes": int(str(form.get("breakfast_max_prep_minutes") or 0)),

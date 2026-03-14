@@ -6,9 +6,9 @@
 <section class="card">
   <div class="section-heading">
     <div>
-      <p class="eyebrow">Weekly grocery list</p>
-      <h2>{{ grocery_list.store_name }} for week of {{ week_start.strftime("%B %d") }}</h2>
-      <p class="muted">This list is only for the upcoming week of meals and tries to reuse ingredients instead of scattering across too many one-off items.</p>
+      <p class="eyebrow">Grocery list</p>
+      <h2>{{ grocery_list.store_name }} for next {{ grocery_horizon_days }} day{% if grocery_horizon_days != 1 %}s{% endif %}</h2>
+      <p class="muted">This list covers the next {{ grocery_horizon_days }} planned day{% if grocery_horizon_days != 1 %}s{% endif %} and still tries to reuse ingredients instead of scattering across too many one-off items.</p>
     </div>
     <form method="post" action="/groceries/regenerate" class="inline-form">
       <input type="hidden" name="week_start" value="{{ week_start.isoformat() }}">
@@ -21,7 +21,7 @@
   <article class="card">
     <p class="eyebrow">Shopping summary</p>
     <h2>{{ distinct_item_count }} distinct items</h2>
-    <p class="muted">The planner now leans toward recipes that share ingredients across the week so the shopping list stays tighter.</p>
+    <p class="muted">The planner leans toward recipes that share ingredients across this {{ grocery_horizon_days }}-day grocery window so the list stays tighter.</p>
     <p class="muted tiny">{{ store_match_count }} items have curated Wegmans package suggestions. {{ linked_product_count }} of those currently have a direct product reference link saved in the app.</p>
   </article>
   <article class="card">
@@ -44,7 +44,7 @@
     <li class="compact-shop-row">
       <div class="compact-shop-main">
         <strong>{{ row.item.ingredient_name|display_name }}</strong>
-        <span class="muted tiny">Need {{ row.item.quantity }} {{ row.item.unit }} for the upcoming week.</span>
+        <span class="muted tiny">Need {{ row.item.quantity }} {{ row.item.unit }} for the next {{ grocery_horizon_days }} day{% if grocery_horizon_days != 1 %}s{% endif %}.</span>
       </div>
       <div class="compact-shop-note">
         <span>{{ row.shopping_label }}</span>
@@ -60,7 +60,7 @@
       </div>
     </li>
     {% else %}
-    <li class="compact-shop-row">Nothing missing for the current week.</li>
+    <li class="compact-shop-row">Nothing missing for the current grocery window.</li>
     {% endfor %}
   </ul>
 </section>

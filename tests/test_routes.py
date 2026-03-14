@@ -22,6 +22,7 @@ def test_main_screens_load(tmp_path):
     assert weekly_response.text.index("Breakfast") < weekly_response.text.index("Lunch") < weekly_response.text.index("Snack") < weekly_response.text.index("Dinner")
     groceries_response = client.get("/groceries")
     assert "One clean shopping view" in groceries_response.text
+    assert "next 7 days" in groceries_response.text
     assert "Check off" in groceries_response.text
     assert "<p class=\"eyebrow\">Dairy</p>" not in groceries_response.text
     inventory_response = client.get("/inventory")
@@ -136,6 +137,40 @@ def test_profile_appliance_add_and_remove_routes_redirect(tmp_path):
         follow_redirects=False,
     )
     assert remove_response.status_code == 303
+
+
+def test_profile_update_changes_grocery_horizon_text(tmp_path):
+    app = create_app(tmp_path / "profile_grocery_days.db")
+    client = TestClient(app)
+
+    profile_page = client.get("/profile")
+    assert profile_page.status_code == 200
+
+    response = client.post(
+        "/profile",
+        data={
+            "name": "Matt",
+            "age": "32",
+            "sex": "male",
+            "current_weight_lb": "175",
+            "goal_weight_lb": "188",
+            "workouts_per_week": "4",
+            "fitness_goal": "Gain muscle.",
+            "shopping_frequency_days": "5",
+            "preferred_store": "Wegmans",
+            "leftovers_cap": "1",
+            "breakfast_max_prep_minutes": "0",
+            "lunch_max_prep_minutes": "10",
+            "snack_max_prep_minutes": "0",
+            "dinner_max_prep_minutes": "30",
+            "notes": "",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+    groceries_page = client.get("/groceries")
+    assert "next 5 days" in groceries_page.text
 
 
 def test_recipe_create_route_saves_recipe_with_ingredients_and_appliances(tmp_path):

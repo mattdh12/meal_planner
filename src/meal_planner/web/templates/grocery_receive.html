@@ -7,7 +7,7 @@
   <div class="section-heading">
     <div>
       <p class="eyebrow">Groceries purchased</p>
-      <h2>Update on-hand inventory for week of {{ week_start.strftime("%B %d") }}</h2>
+      <h2>Update on-hand inventory for next {{ grocery_horizon_days }} day{% if grocery_horizon_days != 1 %}s{% endif %}</h2>
       <p class="muted">Everything starts with the app's recommended amounts. Change any quantity or storage location if your real purchase was different.</p>
     </div>
     <a class="button-link secondary" href="/groceries?start={{ week_start.isoformat() }}">Back to grocery list</a>

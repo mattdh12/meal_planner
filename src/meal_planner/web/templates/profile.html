@@ -28,8 +28,9 @@
           </select>
         </label>
         <label>
-          Shopping frequency (days)
-          <input name="shopping_frequency_days" type="number" value="{{ profile.shopping_frequency_days }}">
+          Grocery list days
+          <input name="shopping_frequency_days" type="number" min="1" max="7" value="{{ profile.shopping_frequency_days }}">
+          <p class="muted tiny">How many planned days the grocery list should cover. Use 5 if you do not want to shop for a full 7 days at once.</p>
         </label>
       </div>
       <div class="grid two">

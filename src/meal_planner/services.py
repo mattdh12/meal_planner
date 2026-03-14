@@ -840,6 +840,7 @@ class PlannerService:
         slot_targets = build_slot_targets(profile, compute_nutrition_targets(profile))
         planned_servings = recommended_servings(recipe, slot_targets[planned_meal.meal_slot])
         planned_meal.recipe_id = recipe.id
+        planned_meal.recipe = recipe
         planned_meal.title = recipe.name
         planned_meal.uses_leftovers = False
         planned_meal.planned_servings = planned_servings
@@ -1013,7 +1014,14 @@ class GroceryService:
             return InventoryLocation.FRIDGE.value
         return InventoryLocation.PANTRY.value
 
+    def grocery_horizon_days(self) -> int:
+        profile = ProfileService(self.session).get_profile()
+        raw_value = getattr(profile, "shopping_frequency_days", 7) if profile is not None else 7
+        return max(1, min(int(raw_value or 7), 7))
+
     def generate_weekly_list(self, week_start: date, regenerate: bool = False) -> GroceryList:
+        profile = ProfileService(self.session).get_profile()
+        coverage_end = week_start + timedelta(days=self.grocery_horizon_days())
         if regenerate:
             grocery_list = self.session.query(GroceryList).filter(GroceryList.week_start == week_start).one_or_none()
             if grocery_list:
@@ -1022,10 +1030,14 @@ class GroceryService:
 
         grocery_list = self.session.query(GroceryList).filter(GroceryList.week_start == week_start).one_or_none()
         if grocery_list is None:
-            grocery_list = GroceryList(week_start=week_start, store_name=DEFAULT_STORE)
+            grocery_list = GroceryList(
+                week_start=week_start,
+                store_name=(profile.preferred_store.strip() if profile and profile.preferred_store else DEFAULT_STORE),
+            )
             self.session.add(grocery_list)
             self.session.flush()
         else:
+            grocery_list.store_name = profile.preferred_store.strip() if profile and profile.preferred_store else DEFAULT_STORE
             self.session.query(GroceryListItem).filter(GroceryListItem.grocery_list_id == grocery_list.id).delete()
 
         required: dict[tuple[int, str], float] = defaultdict(float)
@@ -1034,7 +1046,7 @@ class GroceryService:
             self.session.query(PlannedMeal)
             .join(MealPlanDay, PlannedMeal.meal_plan_day_id == MealPlanDay.id)
             .options(joinedload(PlannedMeal.recipe).joinedload(Recipe.ingredients).joinedload(RecipeIngredient.ingredient))
-            .filter(MealPlanDay.plan_date >= week_start, MealPlanDay.plan_date < week_start + timedelta(days=7))
+            .filter(MealPlanDay.plan_date >= week_start, MealPlanDay.plan_date < coverage_end)
             .all()
         )
         for meal in planned_meals:

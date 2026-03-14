@@ -275,6 +275,56 @@ def test_grocery_rows_include_package_based_store_suggestions(tmp_path):
         assert milk_row["recommended_inventory_quantity"] >= milk_row["item"].quantity
 
 
+def test_grocery_list_respects_configured_shopping_frequency_days(tmp_path):
+    database = Database(tmp_path / "grocery_horizon.db")
+    database.initialize()
+
+    with database.session() as session:
+        profile = ProfileService(session).get_profile()
+        profile.shopping_frequency_days = 5
+        planner = PlannerService(session)
+        recipe_service = RecipeService(session)
+        week_start = start_of_week(date.today())
+        days = planner.generate_week_plan(week_start, regenerate=True)
+
+        late_week_recipe = recipe_service.upsert_recipe(
+            payload={
+                "name": "Late Week Test Dinner",
+                "meal_slot": "dinner",
+                "prep_minutes": 10,
+                "cook_minutes": 10,
+                "simplicity_score": 4,
+                "pots_pans_score": 2,
+                "servings": 1,
+                "leftover_servings": 0,
+                "calories": 600,
+                "protein_g": 40,
+                "carbs_g": 45,
+                "fat_g": 18,
+                "has_protein_component": True,
+                "has_carb_component": True,
+                "has_healthy_fat_component": True,
+                "has_vegetable_component": True,
+                "instructions": "Cook it.\nEat it.",
+                "notes": "Test-only recipe.",
+            },
+            ingredient_lines="Late Week Test Ingredient | 2 | count",
+            appliance_lines="Stove Top",
+        )
+        sixth_day_dinner = next(meal for meal in days[5].meals if meal.meal_slot == "dinner")
+        planner.replace_planned_meal(sixth_day_dinner.id, late_week_recipe.id)
+
+        grocery_service = GroceryService(session)
+        five_day_items = {item.ingredient_name for item in grocery_service.get_weekly_list(week_start).items}
+
+        profile.shopping_frequency_days = 7
+        grocery_service.generate_weekly_list(week_start, regenerate=True)
+        seven_day_items = {item.ingredient_name for item in grocery_service.get_weekly_list(week_start).items}
+
+        assert "Late Week Test Ingredient" not in five_day_items
+        assert "Late Week Test Ingredient" in seven_day_items
+
+
 def test_seed_data_includes_stove_top_and_pans_appliances(tmp_path):
     database = Database(tmp_path / "appliance_seed.db")
     database.initialize()
