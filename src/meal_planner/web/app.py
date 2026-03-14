@@ -14,11 +14,15 @@ from meal_planner.services import (
     ApplianceService,
     FeedbackService,
     GroceryService,
+    IngredientService,
+    IngredientValidationError,
     InventoryService,
     PlannerService,
     ProfileService,
     RecipeService,
     RecipeValidationError,
+    SupplementService,
+    SupplementValidationError,
 )
 from meal_planner.storage import Database, PlannedMeal
 
@@ -109,6 +113,38 @@ def _recipe_form_values(recipe=None, ingredient_lines: str = "", appliance_lines
     }
 
 
+def _ingredient_form_values(ingredient=None, form_data: dict | None = None) -> dict:
+    if form_data is not None:
+        return form_data
+    if ingredient is None:
+        return {"name": "", "default_unit": "count", "category": "Pantry"}
+    return {
+        "name": ingredient.name,
+        "default_unit": ingredient.default_unit,
+        "category": ingredient.category,
+    }
+
+
+def _supplement_form_values(supplement=None, form_data: dict | None = None) -> dict:
+    if form_data is not None:
+        return form_data
+    if supplement is None:
+        return {
+            "name": "",
+            "category": "Supplement",
+            "recommended": False,
+            "dosage": "",
+            "notes": "",
+        }
+    return {
+        "name": supplement.name,
+        "category": supplement.category,
+        "recommended": supplement.recommended,
+        "dosage": supplement.dosage,
+        "notes": supplement.notes,
+    }
+
+
 def create_app(database_path: Path | None = None) -> FastAPI:
     app = FastAPI(title="Meal Planner", version="0.1.0")
     app.state.database = Database(database_path=database_path)
@@ -149,6 +185,48 @@ def create_app(database_path: Path | None = None) -> FastAPI:
             )
             return app.state.templates.TemplateResponse(request, "recipe_form.html", context, status_code=status_code)
 
+    def _render_ingredient_form(
+        request: Request,
+        ingredient=None,
+        form_values: dict | None = None,
+        error_message: str | None = None,
+        status_code: int = 200,
+    ) -> object:
+        with app.state.database.session() as session:
+            ingredient_service = IngredientService(session)
+            profile_service = ProfileService(session)
+            appliance_service = ApplianceService(session)
+            context = _base_context(request, profile_service.get_profile(), len(appliance_service.unresolved()))
+            context.update(
+                {
+                    "ingredient": ingredient,
+                    "form_values": _ingredient_form_values(ingredient=ingredient, form_data=form_values),
+                    "error_message": error_message,
+                    "categories": ingredient_service.categories(),
+                }
+            )
+            return app.state.templates.TemplateResponse(request, "ingredient_form.html", context, status_code=status_code)
+
+    def _render_supplement_form(
+        request: Request,
+        supplement=None,
+        form_values: dict | None = None,
+        error_message: str | None = None,
+        status_code: int = 200,
+    ) -> object:
+        with app.state.database.session() as session:
+            profile_service = ProfileService(session)
+            appliance_service = ApplianceService(session)
+            context = _base_context(request, profile_service.get_profile(), len(appliance_service.unresolved()))
+            context.update(
+                {
+                    "supplement": supplement,
+                    "form_values": _supplement_form_values(supplement=supplement, form_data=form_values),
+                    "error_message": error_message,
+                }
+            )
+            return app.state.templates.TemplateResponse(request, "supplement_form.html", context, status_code=status_code)
+
     @app.get("/")
     async def root() -> RedirectResponse:
         return RedirectResponse(url="/today", status_code=303)
@@ -173,7 +251,7 @@ def create_app(database_path: Path | None = None) -> FastAPI:
                     "grocery_list": grocery_list,
                     "recent_events": inventory_service.recent_events(),
                     "suggestions": feedback_service.dashboard_context()["suggestions"],
-                    "recommended_supplements": recipe_service.recommended_supplements(),
+                    "recommended_supplements": SupplementService(session).recommended_supplements(),
                 }
             )
             return app.state.templates.TemplateResponse(request, "today.html", context)
@@ -265,6 +343,70 @@ def create_app(database_path: Path | None = None) -> FastAPI:
             InventoryService(session).adjust_inventory_item(item_key, quantity, location, reason, mode=mode, unit=unit)
             GroceryService(session).generate_weekly_list(start_of_week(date.today()), regenerate=True)
         return RedirectResponse(url="/inventory", status_code=303)
+
+    @app.get("/ingredients")
+    async def ingredients(request: Request) -> object:
+        with app.state.database.session() as session:
+            ingredient_service = IngredientService(session)
+            profile_service = ProfileService(session)
+            appliance_service = ApplianceService(session)
+            context = _base_context(request, profile_service.get_profile(), len(appliance_service.unresolved()))
+            context.update({"ingredients": ingredient_service.list_ingredients()})
+            return app.state.templates.TemplateResponse(request, "ingredients.html", context)
+
+    @app.get("/ingredients/new")
+    async def new_ingredient(request: Request) -> object:
+        return _render_ingredient_form(request)
+
+    @app.post("/ingredients/new")
+    async def create_ingredient(request: Request) -> object:
+        form = await request.form()
+        form_values = {
+            "name": str(form.get("name") or "").strip(),
+            "default_unit": str(form.get("default_unit") or "").strip(),
+            "category": str(form.get("category") or "").strip(),
+        }
+        try:
+            with app.state.database.session() as session:
+                ingredient = IngredientService(session).upsert_ingredient(form_values)
+                GroceryService(session).generate_weekly_list(start_of_week(date.today()), regenerate=True)
+            return RedirectResponse(url=f"/ingredients/{ingredient.id}/edit", status_code=303)
+        except IngredientValidationError as exc:
+            return _render_ingredient_form(request, form_values=form_values, error_message=str(exc), status_code=400)
+
+    @app.get("/ingredients/{ingredient_id}/edit")
+    async def edit_ingredient(ingredient_id: int, request: Request) -> object:
+        with app.state.database.session() as session:
+            ingredient = IngredientService(session).get_ingredient(ingredient_id)
+        if ingredient is None:
+            raise HTTPException(status_code=404)
+        return _render_ingredient_form(request, ingredient=ingredient)
+
+    @app.post("/ingredients/{ingredient_id}/edit")
+    async def update_ingredient(ingredient_id: int, request: Request) -> object:
+        form = await request.form()
+        form_values = {
+            "name": str(form.get("name") or "").strip(),
+            "default_unit": str(form.get("default_unit") or "").strip(),
+            "category": str(form.get("category") or "").strip(),
+        }
+        try:
+            with app.state.database.session() as session:
+                IngredientService(session).upsert_ingredient(form_values, ingredient_id=ingredient_id)
+                GroceryService(session).generate_weekly_list(start_of_week(date.today()), regenerate=True)
+            return RedirectResponse(url="/ingredients", status_code=303)
+        except IngredientValidationError as exc:
+            with app.state.database.session() as session:
+                ingredient = IngredientService(session).get_ingredient(ingredient_id)
+            if ingredient is None:
+                raise HTTPException(status_code=404)
+            return _render_ingredient_form(
+                request,
+                ingredient=ingredient,
+                form_values=form_values,
+                error_message=str(exc),
+                status_code=400,
+            )
 
     @app.get("/recipes")
     async def recipes(request: Request) -> object:
@@ -571,18 +713,84 @@ def create_app(database_path: Path | None = None) -> FastAPI:
         with app.state.database.session() as session:
             profile_service = ProfileService(session)
             appliance_service = ApplianceService(session)
-            recipe_service = RecipeService(session)
+            supplement_service = SupplementService(session)
             feedback_service = FeedbackService(session, app.state.ai_adapter)
             context = _base_context(request, profile_service.get_profile(), len(appliance_service.unresolved()))
             context.update(feedback_service.dashboard_context())
-            context.update({"supplements": recipe_service.list_supplements()})
+            context.update({"supplements": supplement_service.list_supplements()})
             return app.state.templates.TemplateResponse(request, "feedback.html", context)
+
+    @app.get("/supplements")
+    async def supplements(request: Request) -> object:
+        with app.state.database.session() as session:
+            profile_service = ProfileService(session)
+            appliance_service = ApplianceService(session)
+            supplement_service = SupplementService(session)
+            context = _base_context(request, profile_service.get_profile(), len(appliance_service.unresolved()))
+            context.update({"supplements": supplement_service.list_supplements()})
+            return app.state.templates.TemplateResponse(request, "supplements.html", context)
+
+    @app.get("/supplements/new")
+    async def new_supplement(request: Request) -> object:
+        return _render_supplement_form(request)
+
+    @app.post("/supplements/new")
+    async def create_supplement(request: Request) -> object:
+        form = await request.form()
+        form_values = {
+            "name": str(form.get("name") or "").strip(),
+            "category": str(form.get("category") or "").strip(),
+            "recommended": form.get("recommended") is not None,
+            "dosage": str(form.get("dosage") or "").strip(),
+            "notes": str(form.get("notes") or "").strip(),
+        }
+        try:
+            with app.state.database.session() as session:
+                supplement = SupplementService(session).upsert_supplement(form_values)
+            return RedirectResponse(url=f"/supplements/{supplement.id}/edit", status_code=303)
+        except SupplementValidationError as exc:
+            return _render_supplement_form(request, form_values=form_values, error_message=str(exc), status_code=400)
+
+    @app.get("/supplements/{supplement_id}/edit")
+    async def edit_supplement(supplement_id: int, request: Request) -> object:
+        with app.state.database.session() as session:
+            supplement = SupplementService(session).get_supplement(supplement_id)
+        if supplement is None:
+            raise HTTPException(status_code=404)
+        return _render_supplement_form(request, supplement=supplement)
+
+    @app.post("/supplements/{supplement_id}/edit")
+    async def update_supplement(supplement_id: int, request: Request) -> object:
+        form = await request.form()
+        form_values = {
+            "name": str(form.get("name") or "").strip(),
+            "category": str(form.get("category") or "").strip(),
+            "recommended": form.get("recommended") is not None,
+            "dosage": str(form.get("dosage") or "").strip(),
+            "notes": str(form.get("notes") or "").strip(),
+        }
+        try:
+            with app.state.database.session() as session:
+                SupplementService(session).upsert_supplement(form_values, supplement_id=supplement_id)
+            return RedirectResponse(url="/supplements", status_code=303)
+        except SupplementValidationError as exc:
+            with app.state.database.session() as session:
+                supplement = SupplementService(session).get_supplement(supplement_id)
+            if supplement is None:
+                raise HTTPException(status_code=404)
+            return _render_supplement_form(
+                request,
+                supplement=supplement,
+                form_values=form_values,
+                error_message=str(exc),
+                status_code=400,
+            )
 
     @app.post("/feedback/supplements/{supplement_id}")
     async def supplement_feedback(supplement_id: int, request: Request) -> RedirectResponse:
         form = await request.form()
         with app.state.database.session() as session:
-            RecipeService(session).add_supplement_feedback(
+            SupplementService(session).add_feedback(
                 supplement_id=supplement_id,
                 rating=int(str(form.get("rating") or 3)),
                 notes=str(form.get("notes") or ""),

@@ -18,8 +18,13 @@
   </article>
 
   <article class="card">
-    <p class="eyebrow">Supplement feedback</p>
-    <h2>Rate what you are using</h2>
+    <div class="row-between">
+      <div>
+        <p class="eyebrow">Supplement feedback</p>
+        <h2>Rate what you are using</h2>
+      </div>
+      <a class="button-link secondary" href="/supplements">Manage supplements</a>
+    </div>
     <div class="table-like">
       {% for supplement in supplements %}
       <div class="meal-item">

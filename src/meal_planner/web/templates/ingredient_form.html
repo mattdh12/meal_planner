@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}{{ "Edit Ingredient" if ingredient else "New Ingredient" }} | Meal Planner{% endblock %}
+
+{% block content %}
+<section class="card">
+  <div class="row-between">
+    <div>
+      <p class="eyebrow">{{ "Edit ingredient" if ingredient else "New ingredient" }}</p>
+      <h2>{{ ingredient.name if ingredient else "Create an ingredient the app can reuse" }}</h2>
+      <p class="muted">Ingredient names are shared across recipes, inventory, and grocery lists.</p>
+    </div>
+    <a class="button-link secondary" href="/ingredients">Back to ingredients</a>
+  </div>
+  {% if error_message %}
+  <div class="callout error-callout">
+    <strong>Could not save ingredient</strong>
+    <p>{{ error_message }}</p>
+  </div>
+  {% endif %}
+</section>
+
+<section class="grid two">
+  <article class="card">
+    <form method="post" action="{% if ingredient %}/ingredients/{{ ingredient.id }}/edit{% else %}/ingredients/new{% endif %}">
+      <label>
+        Ingredient name
+        <input type="text" name="name" value="{{ form_values.name }}" required>
+      </label>
+      <label>
+        Default unit
+        <input type="text" name="default_unit" value="{{ form_values.default_unit }}" required>
+      </label>
+      <label>
+        Category
+        <input list="ingredient-categories" name="category" value="{{ form_values.category }}" required>
+      </label>
+      <datalist id="ingredient-categories">
+        {% for category in categories %}
+        <option value="{{ category }}"></option>
+        {% endfor %}
+      </datalist>
+      <div class="row-actions">
+        <button type="submit">{% if ingredient %}Save ingredient{% else %}Create ingredient{% endif %}</button>
+        <a class="button-link secondary" href="/ingredients">Cancel</a>
+      </div>
+    </form>
+  </article>
+
+  <article class="card">
+    <p class="eyebrow">Notes</p>
+    <ul class="simple-list">
+      <li class="meal-item">Use the name you want to see everywhere in the app.</li>
+      <li class="meal-item">The default unit helps new recipes start with a sensible unit.</li>
+      <li class="meal-item">The category drives grocery grouping and suggested storage behavior.</li>
+    </ul>
+  </article>
+</section>
+{% endblock %}

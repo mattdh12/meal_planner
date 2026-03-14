@@ -3,7 +3,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from meal_planner.storage import MealPlanDay, PlannedMeal, Recipe
+from meal_planner.storage import Ingredient, MealPlanDay, PlannedMeal, Recipe, Supplement
 from meal_planner.web.app import create_app
 
 
@@ -11,7 +11,7 @@ def test_main_screens_load(tmp_path):
     app = create_app(tmp_path / "routes.db")
     client = TestClient(app)
 
-    for path in ["/today", "/plans/week", "/inventory", "/recipes", "/groceries", "/groceries/receive", "/profile", "/feedback"]:
+    for path in ["/today", "/plans/week", "/inventory", "/ingredients", "/recipes", "/groceries", "/groceries/receive", "/profile", "/feedback", "/supplements"]:
         response = client.get(path)
         assert response.status_code == 200
     today_response = client.get("/today")
@@ -226,3 +226,65 @@ def test_recipe_edit_route_updates_recipe_and_renames_planned_meals(tmp_path):
         assert recipe.name == "Fiber One Breakfast Bowl"
         planned_titles = {meal.title for meal in session.query(PlannedMeal).filter(PlannedMeal.recipe_id == breakfast_recipe_id).all()}
         assert "Fiber One Breakfast Bowl" in planned_titles
+
+
+def test_ingredient_create_route_saves_ingredient(tmp_path):
+    app = create_app(tmp_path / "ingredient_create.db")
+    client = TestClient(app)
+
+    response = client.post(
+        "/ingredients/new",
+        data={
+            "name": "Paprika",
+            "default_unit": "tsp",
+            "category": "Pantry",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    with app.state.database.session() as session:
+        ingredient = session.query(Ingredient).filter(Ingredient.name == "Paprika").one()
+        assert ingredient.default_unit == "tsp"
+        assert ingredient.category == "Pantry"
+
+
+def test_supplement_create_and_edit_routes_save_changes(tmp_path):
+    app = create_app(tmp_path / "supplement_route.db")
+    client = TestClient(app)
+
+    create_response = client.post(
+        "/supplements/new",
+        data={
+            "name": "Fish Oil",
+            "category": "Health",
+            "recommended": "on",
+            "dosage": "2 softgels daily",
+            "notes": "Useful for omega-3 coverage.",
+        },
+        follow_redirects=False,
+    )
+
+    assert create_response.status_code == 303
+    with app.state.database.session() as session:
+        supplement = session.query(Supplement).filter(Supplement.name == "Fish Oil").one()
+        supplement_id = supplement.id
+        assert supplement.recommended is True
+
+    edit_response = client.post(
+        f"/supplements/{supplement_id}/edit",
+        data={
+            "name": "Fish Oil",
+            "category": "Health",
+            "dosage": "1 softgel daily",
+            "notes": "Adjusted dosage.",
+        },
+        follow_redirects=False,
+    )
+
+    assert edit_response.status_code == 303
+    with app.state.database.session() as session:
+        supplement = session.get(Supplement, supplement_id)
+        assert supplement is not None
+        assert supplement.recommended is False
+        assert supplement.dosage == "1 softgel daily"

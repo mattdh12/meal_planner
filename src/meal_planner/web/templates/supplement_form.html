@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}{{ "Edit Supplement" if supplement else "New Supplement" }} | Meal Planner{% endblock %}
+
+{% block content %}
+<section class="card">
+  <div class="row-between">
+    <div>
+      <p class="eyebrow">{{ "Edit supplement" if supplement else "New supplement" }}</p>
+      <h2>{{ supplement.name if supplement else "Create a supplement entry" }}</h2>
+      <p class="muted">Recommended supplements show up on the Today page.</p>
+    </div>
+    <a class="button-link secondary" href="/supplements">Back to supplements</a>
+  </div>
+  {% if error_message %}
+  <div class="callout error-callout">
+    <strong>Could not save supplement</strong>
+    <p>{{ error_message }}</p>
+  </div>
+  {% endif %}
+</section>
+
+<section class="grid two">
+  <article class="card">
+    <form method="post" action="{% if supplement %}/supplements/{{ supplement.id }}/edit{% else %}/supplements/new{% endif %}">
+      <label>
+        Supplement name
+        <input type="text" name="name" value="{{ form_values.name }}" required>
+      </label>
+      <label>
+        Category
+        <input type="text" name="category" value="{{ form_values.category }}">
+      </label>
+      <label>
+        Dosage
+        <input type="text" name="dosage" value="{{ form_values.dosage }}" placeholder="5g daily">
+      </label>
+      <label>
+        Notes
+        <textarea name="notes" placeholder="Why it is useful, reorder notes, anything worth remembering.">{{ form_values.notes }}</textarea>
+      </label>
+      <label class="checkbox-row">
+        <input type="checkbox" name="recommended" {% if form_values.recommended %}checked{% endif %}>
+        Recommended by default
+      </label>
+      <div class="row-actions">
+        <button type="submit">{% if supplement %}Save supplement{% else %}Create supplement{% endif %}</button>
+        <a class="button-link secondary" href="/supplements">Cancel</a>
+      </div>
+    </form>
+  </article>
+
+  <article class="card">
+    <p class="eyebrow">Notes</p>
+    <ul class="simple-list">
+      <li class="meal-item">Recommended supplements appear on the Today page.</li>
+      <li class="meal-item">Use the notes field for reorder reminders or why you take it.</li>
+      <li class="meal-item">Feedback stays attached even if you update the dosage or notes later.</li>
+    </ul>
+  </article>
+</section>
+{% endblock %}

@@ -59,6 +59,14 @@ class RecipeValidationError(ValueError):
     pass
 
 
+class IngredientValidationError(ValueError):
+    pass
+
+
+class SupplementValidationError(ValueError):
+    pass
+
+
 class ProfileService:
     def __init__(self, session: Session):
         self.session = session
@@ -356,6 +364,128 @@ class RecipeService:
         ]
 
     def add_supplement_feedback(self, supplement_id: int, rating: int, notes: str) -> None:
+        self.session.add(
+            SupplementFeedback(
+                supplement_id=supplement_id,
+                rating=rating,
+                notes=notes,
+            )
+        )
+        self.session.flush()
+
+
+class IngredientService:
+    def __init__(self, session: Session):
+        self.session = session
+
+    def list_ingredients(self) -> list[Ingredient]:
+        return self.session.query(Ingredient).order_by(Ingredient.name.asc()).all()
+
+    def get_ingredient(self, ingredient_id: int) -> Ingredient | None:
+        return self.session.get(Ingredient, ingredient_id)
+
+    def categories(self) -> list[str]:
+        categories = [
+            category
+            for category, in self.session.query(Ingredient.category).distinct().order_by(Ingredient.category.asc()).all()
+            if category
+        ]
+        if "Pantry" not in categories:
+            categories.append("Pantry")
+        return categories
+
+    def upsert_ingredient(self, payload: dict[str, Any], ingredient_id: int | None = None) -> Ingredient:
+        name = str(payload.get("name") or "").strip()
+        default_unit = str(payload.get("default_unit") or "").strip()
+        category = str(payload.get("category") or "").strip()
+
+        if not name:
+            raise IngredientValidationError("Ingredient name is required.")
+        if not default_unit:
+            raise IngredientValidationError("Default unit is required.")
+        if not category:
+            raise IngredientValidationError("Category is required.")
+
+        ingredient = self.session.get(Ingredient, ingredient_id) if ingredient_id is not None else None
+        duplicate = (
+            self.session.query(Ingredient)
+            .filter(func.lower(Ingredient.name) == name.lower())
+            .one_or_none()
+        )
+        if duplicate is not None and (ingredient is None or duplicate.id != ingredient.id):
+            raise IngredientValidationError("An ingredient with that name already exists.")
+
+        if ingredient is None:
+            ingredient = Ingredient(name=name)
+            self.session.add(ingredient)
+            self.session.flush()
+
+        previous_name = ingredient.name
+        ingredient.name = name
+        ingredient.default_unit = default_unit
+        ingredient.category = category
+        self.session.flush()
+
+        if previous_name != ingredient.name:
+            for inventory_item in self.session.query(InventoryItem).filter(InventoryItem.ingredient_id == ingredient.id).all():
+                inventory_item.name = ingredient.name
+            for grocery_item in self.session.query(GroceryListItem).filter(GroceryListItem.ingredient_name == previous_name).all():
+                grocery_item.ingredient_name = ingredient.name
+        self.session.flush()
+        return ingredient
+
+
+class SupplementService:
+    def __init__(self, session: Session):
+        self.session = session
+
+    def list_supplements(self) -> list[Supplement]:
+        return (
+            self.session.query(Supplement)
+            .options(joinedload(Supplement.feedback_entries))
+            .order_by(Supplement.recommended.desc(), Supplement.name.asc())
+            .all()
+        )
+
+    def get_supplement(self, supplement_id: int) -> Supplement | None:
+        return (
+            self.session.query(Supplement)
+            .options(joinedload(Supplement.feedback_entries))
+            .filter(Supplement.id == supplement_id)
+            .one_or_none()
+        )
+
+    def recommended_supplements(self) -> list[Supplement]:
+        return [supplement for supplement in self.list_supplements() if supplement.recommended]
+
+    def upsert_supplement(self, payload: dict[str, Any], supplement_id: int | None = None) -> Supplement:
+        name = str(payload.get("name") or "").strip()
+        if not name:
+            raise SupplementValidationError("Supplement name is required.")
+
+        supplement = self.session.get(Supplement, supplement_id) if supplement_id is not None else None
+        duplicate = (
+            self.session.query(Supplement)
+            .filter(func.lower(Supplement.name) == name.lower())
+            .one_or_none()
+        )
+        if duplicate is not None and (supplement is None or duplicate.id != supplement.id):
+            raise SupplementValidationError("A supplement with that name already exists.")
+
+        if supplement is None:
+            supplement = Supplement(name=name)
+            self.session.add(supplement)
+            self.session.flush()
+
+        supplement.name = name
+        supplement.category = str(payload.get("category") or "Supplement").strip() or "Supplement"
+        supplement.recommended = bool(payload.get("recommended"))
+        supplement.dosage = str(payload.get("dosage") or "").strip()
+        supplement.notes = str(payload.get("notes") or "").strip()
+        self.session.flush()
+        return supplement
+
+    def add_feedback(self, supplement_id: int, rating: int, notes: str) -> None:
         self.session.add(
             SupplementFeedback(
                 supplement_id=supplement_id,

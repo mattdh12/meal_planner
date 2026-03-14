@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Ingredients | Meal Planner{% endblock %}
+
+{% block content %}
+<section class="card">
+  <div class="row-between">
+    <div>
+      <p class="eyebrow">Ingredient library</p>
+      <h2>Names, units, and grocery categories</h2>
+      <p class="muted">This controls how ingredients appear in recipes, inventory, and grocery lists.</p>
+    </div>
+    <a class="button-link" href="/ingredients/new">Add ingredient</a>
+  </div>
+</section>
+
+<section class="grid two">
+  {% for ingredient in ingredients %}
+  <article class="card">
+    <div class="row-between">
+      <div>
+        <h3>{{ ingredient.name }}</h3>
+        <p class="muted">Default unit: {{ ingredient.default_unit }} | Category: {{ ingredient.category }}</p>
+      </div>
+      <a class="button-link secondary" href="/ingredients/{{ ingredient.id }}/edit">Edit</a>
+    </div>
+  </article>
+  {% endfor %}
+</section>
+{% endblock %}

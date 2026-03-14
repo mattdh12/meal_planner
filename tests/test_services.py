@@ -2,7 +2,7 @@ from datetime import date, timedelta
 
 from meal_planner.domain import MEAL_SLOT_ORDER, start_of_week
 from meal_planner.planning import compute_nutrition_targets
-from meal_planner.services import ApplianceService, GroceryService, InventoryService, PlannerService, ProfileService, RecipeService
+from meal_planner.services import ApplianceService, GroceryService, IngredientService, InventoryService, PlannerService, ProfileService, RecipeService
 from meal_planner.store_catalog import get_wegmans_product_reference
 from meal_planner.storage import Database, InventoryItem, MealPlanDay
 
@@ -293,3 +293,33 @@ def test_leftover_recipes_include_direct_microwave_steps():
     assert steps
     assert "Microwave for 2 minutes." in steps
     assert all("to" not in step for step in steps if "Microwave for" in step)
+
+
+def test_ingredient_rename_updates_linked_inventory_item_names(tmp_path):
+    database = Database(tmp_path / "ingredient_rename.db")
+    database.initialize()
+
+    with database.session() as session:
+        ingredient_service = IngredientService(session)
+        inventory_service = InventoryService(session)
+        inventory_service.adjust_inventory_item(
+            "Seasoning blend",
+            2,
+            "pantry",
+            "Test setup",
+            mode="delta",
+            unit="tbsp",
+        )
+        seasoning = next(ingredient for ingredient in ingredient_service.list_ingredients() if ingredient.name == "Seasoning blend")
+
+        ingredient_service.upsert_ingredient(
+            {
+                "name": "All-purpose seasoning",
+                "default_unit": "tbsp",
+                "category": "Pantry",
+            },
+            ingredient_id=seasoning.id,
+        )
+
+        inventory_names = {item.name for item in session.query(InventoryItem).all()}
+        assert "All-purpose seasoning" in inventory_names

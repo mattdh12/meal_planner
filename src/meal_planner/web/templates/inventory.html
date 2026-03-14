@@ -5,8 +5,13 @@
 {% block content %}
 <section class="grid two">
   <article class="card">
-    <p class="eyebrow">Manual updates</p>
-    <h2>Adjust inventory yourself</h2>
+    <div class="row-between">
+      <div>
+        <p class="eyebrow">Manual updates</p>
+        <h2>Adjust inventory yourself</h2>
+      </div>
+      <a class="button-link secondary" href="/ingredients">Ingredient library</a>
+    </div>
     <form method="post" action="/inventory/adjust">
       <label>
         Item name
