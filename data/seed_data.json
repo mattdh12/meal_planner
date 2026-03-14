@@ -19,6 +19,8 @@
   "appliances": [
     { "name": "Oven", "has_appliance": true },
     { "name": "Microwave", "has_appliance": true },
+    { "name": "Stove Top", "has_appliance": true },
+    { "name": "Pans", "has_appliance": true },
     { "name": "Vitamix", "has_appliance": true },
     { "name": "Rice cooker", "has_appliance": true },
     { "name": "Crock Pot", "has_appliance": true },

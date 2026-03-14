@@ -201,3 +201,14 @@ def test_grocery_rows_include_package_based_store_suggestions(tmp_path):
         assert milk_row["recommended_packages"] >= 1
         assert "Whole milk" in milk_row["shopping_label"]
         assert milk_row["recommended_inventory_quantity"] >= milk_row["item"].quantity
+
+
+def test_seed_data_includes_stove_top_and_pans_appliances(tmp_path):
+    database = Database(tmp_path / "appliance_seed.db")
+    database.initialize()
+
+    with database.session() as session:
+        appliance_names = {appliance.name for appliance in ApplianceService(session).list_appliances()}
+
+        assert "Stove Top" in appliance_names
+        assert "Pans" in appliance_names

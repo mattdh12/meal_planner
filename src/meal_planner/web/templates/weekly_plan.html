@@ -31,7 +31,12 @@
         <div class="row-between">
           <div>
             <span class="pill">{{ meal.meal_slot|title }}</span>
-            <p class="meal-title">{{ meal.title }}</p>
+            {% if meal.recipe_id and meal.recipe %}
+            <a class="meal-title-link" href="/recipes/{{ meal.recipe_id }}">{{ meal.title|display_name }}</a>
+            <a class="tiny-link" href="/recipes/{{ meal.recipe_id }}">Open recipe details</a>
+            {% else %}
+            <p class="meal-title">{{ meal.title|display_name }}</p>
+            {% endif %}
             <p class="muted tiny">{{ meal.notes }}</p>
           </div>
         </div>

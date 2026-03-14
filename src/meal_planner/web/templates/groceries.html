@@ -32,41 +32,30 @@
   </article>
 </section>
 
-<section class="grid two">
-  {% for section, rows in grouped_rows.items() %}
-  <article class="card">
-    <p class="eyebrow">{{ section }}</p>
-    <h2>{{ rows|length }} items</h2>
-    <ul class="simple-list">
-      {% for row in rows %}
-      <li class="meal-item">
-        <div class="row-between">
-          <div>
-            <p class="meal-title">{{ row.item.ingredient_name }}</p>
-            <p class="muted tiny">Need {{ row.item.quantity }} {{ row.item.unit }} for the upcoming week.</p>
-          </div>
-          <span class="pill">{{ row.item.section }}</span>
-        </div>
-        <div class="shopping-note">
-          <p class="eyebrow">Suggested Wegmans buy</p>
-          <p class="meal-title">{{ row.shopping_label }}</p>
-          <p class="muted tiny">Default inventory update: {{ row.recommended_inventory_label }}</p>
-          {% if row.notes %}
-          <p class="muted tiny">{{ row.notes }}</p>
-          {% endif %}
-          {% if row.product_url %}
-          <a class="tiny-link" href="{{ row.product_url }}" target="_blank" rel="noreferrer">Open current Wegmans reference</a>
-          {% endif %}
-        </div>
-      </li>
-      {% endfor %}
-    </ul>
-  </article>
-  {% else %}
-  <article class="card">
-    <h2>No groceries needed</h2>
-    <p class="muted">Current inventory already covers the planned week.</p>
-  </article>
-  {% endfor %}
+<section class="card compact-list-card">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Shopping list</p>
+      <h2>One clean shopping view</h2>
+    </div>
+  </div>
+  <ul class="simple-list compact-shop-list">
+    {% for row in shopping_rows %}
+    <li class="compact-shop-row">
+      <div class="compact-shop-main">
+        <strong>{{ row.item.ingredient_name|display_name }}</strong>
+        <span class="muted tiny">Need {{ row.item.quantity }} {{ row.item.unit }} for the upcoming week.</span>
+      </div>
+      <div class="compact-shop-note">
+        <span>{{ row.shopping_label }}</span>
+        {% if row.product_url %}
+        <a class="tiny-link" href="{{ row.product_url }}" target="_blank" rel="noreferrer">Wegmans ref</a>
+        {% endif %}
+      </div>
+    </li>
+    {% else %}
+    <li class="compact-shop-row">Nothing missing for the current week.</li>
+    {% endfor %}
+  </ul>
 </section>
 {% endblock %}

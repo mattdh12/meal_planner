@@ -68,24 +68,30 @@
   <article class="card">
     <p class="eyebrow">{{ location|title }}</p>
     <h2>{{ items|length }} items</h2>
+    <p class="muted tiny">Type a positive number to add more, or a negative number to subtract some.</p>
     <ul class="simple-list">
       {% for item in items %}
       <li class="meal-item">
         <div class="row-between">
-          <strong>{{ item.name }}</strong>
+          <strong>{{ item.name|display_name }}</strong>
           <span class="muted">{{ item.quantity }} {{ item.unit }}</span>
         </div>
-        <form method="post" action="/inventory/adjust" class="inline-form">
+        <form method="post" action="/inventory/adjust" class="item-adjust-form">
           <input type="hidden" name="item_id" value="{{ item.id }}">
           <input type="hidden" name="location" value="{{ item.location }}">
           <input type="hidden" name="unit" value="{{ item.unit }}">
           <input type="hidden" name="mode" value="delta">
-          <input type="hidden" name="reason" value="Quick adjustment">
-          <label>
-            Quick delta
-            <input name="quantity" type="number" step="0.25" value="1">
-          </label>
-          <button type="submit" class="secondary">Apply</button>
+          <input type="hidden" name="reason" value="Inline adjustment">
+          <input
+            class="item-adjust-input"
+            name="quantity"
+            type="number"
+            step="0.25"
+            value="1"
+            placeholder="+1 or -1"
+            aria-label="Adjust amount for {{ item.name|display_name }}"
+          >
+          <button type="submit" class="secondary">Update</button>
         </form>
       </li>
       {% endfor %}

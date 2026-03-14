@@ -116,7 +116,7 @@
     <ul class="simple-list">
       {% for event in recent_events %}
       <li class="meal-item">
-        <strong>{{ event.inventory_item_name }}</strong>
+        <strong>{{ event.inventory_item_name|display_name }}</strong>
         <p class="muted tiny">{{ event.event_type.replace('_', ' ')|title }} | {{ event.quantity_delta }} {{ event.unit }} | {{ event.reason }}</p>
       </li>
       {% else %}

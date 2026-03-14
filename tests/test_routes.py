@@ -15,8 +15,13 @@ def test_main_screens_load(tmp_path):
         assert response.status_code == 200
     today_response = client.get("/today")
     assert "/recipes/" in today_response.text
+    weekly_response = client.get("/plans/week")
+    assert "/recipes/" in weekly_response.text
     groceries_response = client.get("/groceries")
-    assert "Suggested Wegmans buy" in groceries_response.text
+    assert "One clean shopping view" in groceries_response.text
+    assert "<p class=\"eyebrow\">Dairy</p>" not in groceries_response.text
+    inventory_response = client.get("/inventory")
+    assert "Quick delta" not in inventory_response.text
 
 
 def test_inventory_adjust_route_redirects(tmp_path):

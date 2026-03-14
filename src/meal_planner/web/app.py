@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import defaultdict
 from datetime import date, datetime
 from pathlib import Path
 
@@ -43,11 +42,21 @@ def _base_context(request: Request, profile, unresolved_count: int) -> dict:
     }
 
 
+def _display_name(raw_value: object) -> object:
+    if not isinstance(raw_value, str):
+        return raw_value
+    stripped = raw_value.strip()
+    if stripped and stripped == stripped.lower():
+        return stripped.title()
+    return raw_value
+
+
 def create_app(database_path: Path | None = None) -> FastAPI:
     app = FastAPI(title="Meal Planner", version="0.1.0")
     app.state.database = Database(database_path=database_path)
     app.state.database.initialize()
     app.state.templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
+    app.state.templates.env.filters["display_name"] = _display_name
     app.state.ai_adapter = AIPlannerAdapter()
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
@@ -209,15 +218,12 @@ def create_app(database_path: Path | None = None) -> FastAPI:
             appliance_service = ApplianceService(session)
             grocery_list = grocery_service.get_weekly_list(week_start)
             shopping_rows = grocery_service.shopping_rows(week_start)
-            grouped: dict[str, list] = defaultdict(list)
-            for row in shopping_rows:
-                grouped[row["item"].section].append(row)
             context = _base_context(request, profile_service.get_profile(), len(appliance_service.unresolved()))
             context.update(
                 {
                     "week_start": week_start,
                     "grocery_list": grocery_list,
-                    "grouped_rows": dict(grouped),
+                    "shopping_rows": shopping_rows,
                     "distinct_item_count": len(grocery_list.items),
                     "store_match_count": sum(1 for row in shopping_rows if row["has_store_reference"]),
                     "linked_product_count": sum(1 for row in shopping_rows if row["product_url"]),

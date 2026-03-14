@@ -1,9 +1,9 @@
 :root {
   --bg: #071018;
   --bg-deep: #03070d;
-  --panel: rgba(13, 24, 36, 0.88);
-  --panel-strong: rgba(18, 32, 47, 0.96);
-  --panel-soft: rgba(24, 40, 58, 0.76);
+  --panel: rgba(10, 18, 27, 0.92);
+  --panel-strong: rgba(13, 24, 36, 0.98);
+  --panel-soft: rgba(18, 31, 45, 0.78);
   --ink: #f2f7fb;
   --muted: #9eb2c7;
   --accent: #31d5a2;
@@ -13,9 +13,9 @@
   --line: rgba(173, 202, 230, 0.18);
   --line-strong: rgba(173, 202, 230, 0.28);
   --warm: #f4c776;
-  --shadow: 0 28px 80px rgba(0, 0, 0, 0.38);
-  --radius: 22px;
-  --radius-sm: 14px;
+  --shadow: 0 16px 40px rgba(0, 0, 0, 0.32);
+  --radius: 18px;
+  --radius-sm: 12px;
 }
 
 * {
@@ -29,12 +29,12 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+  font-family: "Aptos", "Segoe UI Variable Text", "Segoe UI", "Helvetica Neue", sans-serif;
   color: var(--ink);
   background:
-    radial-gradient(circle at top left, rgba(49, 213, 162, 0.12), transparent 26%),
-    radial-gradient(circle at top right, rgba(116, 145, 255, 0.14), transparent 24%),
-    linear-gradient(180deg, #09131d 0%, #071018 44%, #03070d 100%);
+    radial-gradient(circle at top left, rgba(49, 213, 162, 0.1), transparent 24%),
+    radial-gradient(circle at top right, rgba(116, 145, 255, 0.1), transparent 22%),
+    linear-gradient(180deg, #08121a 0%, #061019 48%, #03070d 100%);
 }
 
 a {
@@ -44,8 +44,9 @@ a {
 h1,
 h2,
 h3 {
-  font-family: Georgia, "Times New Roman", serif;
-  letter-spacing: 0.01em;
+  font-family: "Aptos Display", "Segoe UI Variable Display", "Segoe UI", "Helvetica Neue", sans-serif;
+  letter-spacing: -0.03em;
+  font-weight: 700;
 }
 
 .shell-header,
@@ -57,12 +58,12 @@ h3 {
 
 .shell-header {
   margin-top: 1.25rem;
-  padding: 1.6rem 1.6rem 1.2rem;
+  padding: 1.4rem 1.5rem 1.1rem;
   display: flex;
   justify-content: space-between;
   gap: 1rem;
   align-items: end;
-  background: linear-gradient(135deg, rgba(16, 29, 43, 0.92), rgba(11, 19, 30, 0.78));
+  background: linear-gradient(140deg, rgba(14, 25, 37, 0.96), rgba(8, 14, 22, 0.88));
   border: 1px solid var(--line);
   border-radius: calc(var(--radius) + 2px);
   box-shadow: var(--shadow);
@@ -80,7 +81,7 @@ h3 {
 
 .shell-header h1 {
   margin: 0.25rem 0;
-  font-size: clamp(2rem, 4vw, 3.3rem);
+  font-size: clamp(2rem, 4vw, 3rem);
   line-height: 0.98;
 }
 
@@ -111,7 +112,7 @@ h3 {
   background: rgba(13, 24, 36, 0.68);
   border: 1px solid var(--line);
   border-radius: 999px;
-  padding: 0.7rem 1rem;
+  padding: 0.62rem 0.95rem;
   font-weight: 700;
   transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
   backdrop-filter: blur(10px);
@@ -145,7 +146,7 @@ h3 {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: 1.2rem;
+  padding: 1.08rem;
   backdrop-filter: blur(12px);
 }
 
@@ -189,8 +190,8 @@ h3 {
 .meal-item {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  padding: 0.95rem;
-  background: linear-gradient(180deg, rgba(18, 32, 47, 0.92), rgba(12, 23, 35, 0.85));
+  padding: 0.85rem 0.95rem;
+  background: linear-gradient(180deg, rgba(15, 28, 40, 0.92), rgba(10, 20, 30, 0.88));
   transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
 }
 
@@ -252,6 +253,37 @@ h3 {
   border-radius: var(--radius-sm);
   background: linear-gradient(180deg, rgba(10, 20, 30, 0.82), rgba(14, 26, 39, 0.92));
   border: 1px solid rgba(49, 213, 162, 0.16);
+}
+
+.compact-list-card {
+  margin-bottom: 1rem;
+}
+
+.compact-shop-list {
+  gap: 0.4rem;
+}
+
+.compact-shop-row {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr);
+  gap: 1rem;
+  padding: 0.8rem 0;
+  border-bottom: 1px solid rgba(173, 202, 230, 0.12);
+}
+
+.compact-shop-row:last-child {
+  border-bottom: none;
+}
+
+.compact-shop-main,
+.compact-shop-note {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+
+.compact-shop-note {
+  align-items: flex-start;
 }
 
 .instruction-block {
@@ -368,6 +400,18 @@ button.secondary {
   flex-wrap: wrap;
 }
 
+.item-adjust-form {
+  margin-top: 0.8rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.item-adjust-input {
+  min-width: 0;
+}
+
 .table-like {
   display: grid;
   gap: 0.8rem;
@@ -403,5 +447,10 @@ button.secondary {
   .meal-item header,
   .row-between {
     flex-direction: column;
+  }
+
+  .compact-shop-row,
+  .item-adjust-form {
+    grid-template-columns: 1fr;
   }
 }

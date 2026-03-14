@@ -22,8 +22,7 @@
       <li class="meal-item">
         <div class="row-between">
           <div>
-            <span class="pill">{{ row.item.section }}</span>
-            <p class="meal-title">{{ row.item.ingredient_name }}</p>
+            <p class="meal-title">{{ row.item.ingredient_name|display_name }}</p>
             <p class="muted tiny">{{ row.shopping_label }}</p>
             {% if row.product_url %}
             <a class="tiny-link" href="{{ row.product_url }}" target="_blank" rel="noreferrer">Open current Wegmans reference</a>
@@ -48,7 +47,6 @@
             </select>
           </label>
         </div>
-        <p class="muted tiny">Suggested buy: {{ row.shopping_label }}</p>
         <p class="muted tiny">Default receive amount: {{ row.recommended_inventory_label }}</p>
         {% if row.notes %}
         <p class="muted tiny">{{ row.notes }}</p>
