@@ -18,7 +18,21 @@ from meal_planner.domain import (
     daterange,
     start_of_week,
 )
-from meal_planner.planning import build_slot_targets, choose_best_recipe, compute_nutrition_targets
+from meal_planner.planning import (
+    build_slot_targets,
+    choose_best_recipe,
+    compute_nutrition_targets,
+    current_inventory_by_ingredient,
+    inventory_coverage,
+    known_appliance_map,
+    max_planned_servings,
+    recipe_candidates,
+    recipe_feedback_score,
+    recent_recipe_counts,
+    recommended_servings,
+    score_recipe,
+    slot_calorie_ceiling,
+)
 from meal_planner.settings import DEFAULT_STORE
 from meal_planner.store_catalog import get_wegmans_product_reference
 from meal_planner.storage import (
@@ -62,6 +76,28 @@ class ApplianceService:
 
     def list_appliances(self) -> list[Appliance]:
         return self.session.query(Appliance).order_by(Appliance.name.asc()).all()
+
+    def add_appliance(self, name: str, has_it: bool = True) -> Appliance | None:
+        cleaned = name.strip()
+        if not cleaned:
+            return None
+        appliance = self.session.query(Appliance).filter(func.lower(Appliance.name) == cleaned.lower()).one_or_none()
+        if appliance is None:
+            appliance = Appliance(name=cleaned, has_appliance=has_it, is_known=True)
+            self.session.add(appliance)
+        else:
+            appliance.has_appliance = has_it
+            appliance.is_known = True
+        self.session.flush()
+        return appliance
+
+    def set_availability(self, appliance_id: int, has_it: bool) -> Appliance | None:
+        appliance = self.session.get(Appliance, appliance_id)
+        if appliance is None:
+            return None
+        appliance.has_appliance = has_it
+        self.session.flush()
+        return appliance
 
     def resolve_unknown_appliance(self, name: str, has_it: bool) -> Appliance:
         appliance = self.session.query(Appliance).filter(func.lower(Appliance.name) == name.lower()).one_or_none()
@@ -129,6 +165,22 @@ class RecipeService:
             .order_by(Supplement.recommended.desc(), Supplement.name.asc())
             .all()
         )
+
+    def recommended_supplements(self) -> list[Supplement]:
+        return [supplement for supplement in self.list_supplements() if supplement.recommended]
+
+    @staticmethod
+    def leftover_reheat_steps(recipe: Recipe | None, microwave_available: bool) -> list[str]:
+        if recipe is None or recipe.leftover_servings <= 0 or not microwave_available:
+            return []
+        return [
+            "Move one leftover serving into a microwave-safe bowl or plate.",
+            "Cover it loosely so the food does not dry out.",
+            "Microwave for 2 minutes.",
+            "Stir the center so the heat spreads evenly.",
+            "Microwave for 1 more minute.",
+            "Let it sit for 1 minute before eating.",
+        ]
 
     def add_supplement_feedback(self, supplement_id: int, rating: int, notes: str) -> None:
         self.session.add(
@@ -249,7 +301,7 @@ class InventoryService:
                 )
         else:
             for recipe_ingredient in recipe.ingredients:
-                remaining = recipe_ingredient.quantity
+                remaining = recipe_ingredient.quantity * max(planned_meal.planned_servings, 1)
                 items = (
                     self.session.query(InventoryItem)
                     .filter(
@@ -280,7 +332,7 @@ class InventoryService:
                     )
 
             if recipe.leftover_servings and planned_meal.meal_slot == MealSlot.DINNER.value:
-                leftover_quantity = min(recipe.leftover_servings, leftovers_cap)
+                leftover_quantity = min(recipe.leftover_servings * max(planned_meal.planned_servings, 1), leftovers_cap)
                 leftover_name = f"Leftover: {recipe.name}"
                 leftover = (
                     self.session.query(InventoryItem)
@@ -342,6 +394,13 @@ class PlannerService:
     def generate_day_plan(self, target_date: date) -> MealPlanDay:
         week_start = start_of_week(target_date)
         self.generate_week_plan(week_start)
+        day = (
+            self.session.query(MealPlanDay)
+            .options(joinedload(MealPlanDay.meals).joinedload(PlannedMeal.recipe), joinedload(MealPlanDay.prep_tasks))
+            .filter(MealPlanDay.plan_date == target_date)
+            .one()
+        )
+        self._rebalance_day_calories(day)
         return (
             self.session.query(MealPlanDay)
             .options(joinedload(MealPlanDay.meals).joinedload(PlannedMeal.recipe), joinedload(MealPlanDay.prep_tasks))
@@ -387,13 +446,21 @@ class PlannerService:
         leftovers_queue: list[tuple[int, str]] = []
         week_ingredient_counts: dict[int, int] = defaultdict(int)
         week_recipe_counts: dict[int, int] = defaultdict(int)
+        previous_slot_recipe_ids: dict[str, int | None] = {
+            MealSlot.LUNCH.value: None,
+            MealSlot.DINNER.value: None,
+        }
         for target_date in daterange(week_start, 7):
             day = self._get_or_create_day(target_date)
             self.session.query(PlannedMeal).filter(PlannedMeal.meal_plan_day_id == day.id).delete()
             self.session.query(PrepTask).filter(PrepTask.meal_plan_day_id == day.id).delete()
 
             for meal_slot in MEAL_SLOT_ORDER:
-                if meal_slot == MealSlot.LUNCH.value and leftovers_queue:
+                if (
+                    meal_slot == MealSlot.LUNCH.value
+                    and leftovers_queue
+                    and leftovers_queue[0][0] != previous_slot_recipe_ids[MealSlot.LUNCH.value]
+                ):
                     recipe_id, title = leftovers_queue.pop(0)
                     self.session.add(
                         PlannedMeal(
@@ -405,6 +472,7 @@ class PlannerService:
                             uses_leftovers=True,
                         )
                     )
+                    previous_slot_recipe_ids[MealSlot.LUNCH.value] = recipe_id
                     continue
 
                 scored = choose_best_recipe(
@@ -413,6 +481,7 @@ class PlannerService:
                     meal_slot,
                     weekly_ingredient_counts=week_ingredient_counts,
                     weekly_recipe_counts=week_recipe_counts,
+                    previous_slot_recipe_id=previous_slot_recipe_ids.get(meal_slot),
                 )
                 if scored is None:
                     self.session.add(
@@ -425,18 +494,24 @@ class PlannerService:
                             notes="No seeded recipe matched the current rules.",
                         )
                     )
+                    if meal_slot in previous_slot_recipe_ids:
+                        previous_slot_recipe_ids[meal_slot] = None
                     continue
-
                 self.session.add(
                     PlannedMeal(
                         meal_plan_day_id=day.id,
                         meal_slot=meal_slot,
                         recipe_id=scored.recipe.id,
                         title=scored.recipe.name,
-                        planned_servings=1,
-                        notes=f"Inventory coverage: {round(scored.inventory_coverage * 100)}%",
+                        planned_servings=scored.planned_servings,
+                        notes=(
+                            f"Inventory coverage: {round(scored.inventory_coverage * 100)}% | "
+                            f"{scored.planned_servings} serving{'s' if scored.planned_servings != 1 else ''} planned"
+                        ),
                     )
                 )
+                if meal_slot in previous_slot_recipe_ids:
+                    previous_slot_recipe_ids[meal_slot] = scored.recipe.id
                 week_recipe_counts[scored.recipe.id] += 1
                 for recipe_ingredient in scored.recipe.ingredients:
                     week_ingredient_counts[recipe_ingredient.ingredient_id] += 1
@@ -458,12 +533,98 @@ class PlannerService:
         recipe = self.session.get(Recipe, recipe_id)
         if planned_meal is None or recipe is None:
             return
+        profile = self.profile_service.get_profile()
+        slot_targets = build_slot_targets(profile, compute_nutrition_targets(profile))
+        planned_servings = recommended_servings(recipe, slot_targets[planned_meal.meal_slot])
         planned_meal.recipe_id = recipe.id
         planned_meal.title = recipe.name
         planned_meal.uses_leftovers = False
-        planned_meal.notes = "Manually replaced from weekly plan."
+        planned_meal.planned_servings = planned_servings
+        planned_meal.notes = (
+            "Manually replaced from weekly plan. "
+            f"{planned_servings} serving{'s' if planned_servings != 1 else ''} planned."
+        )
         self.session.flush()
         self._rebuild_prep_tasks(start_of_week(planned_meal.day.plan_date))
+
+    @staticmethod
+    def planned_meal_calories(planned_meal: PlannedMeal) -> int | None:
+        if planned_meal.recipe is None:
+            return None
+        return int(planned_meal.recipe.calories * max(planned_meal.planned_servings, 1))
+
+    def planned_day_calories(self, day: MealPlanDay) -> int:
+        return sum(self.planned_meal_calories(meal) or 0 for meal in day.meals)
+
+    def _rebalance_day_calories(self, day: MealPlanDay) -> None:
+        profile = self.profile_service.get_profile()
+        nutrition = compute_nutrition_targets(profile)
+        minimum_daily_calories = nutrition.calories - 250
+        if self.planned_day_calories(day) >= minimum_daily_calories:
+            return
+
+        inventory = current_inventory_by_ingredient(self.session)
+        feedback = recipe_feedback_score(self.session)
+        recent_counts = recent_recipe_counts(self.session)
+        appliance_state = known_appliance_map(self.session)
+        slot_targets = build_slot_targets(profile, nutrition)
+        slot_meals = {meal.meal_slot: meal for meal in day.meals}
+
+        while self.planned_day_calories(day) < minimum_daily_calories:
+            deficit = minimum_daily_calories - self.planned_day_calories(day)
+            best_upgrade: dict[str, Any] | None = None
+
+            for meal_slot in (MealSlot.BREAKFAST.value, MealSlot.SNACK.value):
+                meal = slot_meals.get(meal_slot)
+                if meal is None or meal.recipe is None or meal.uses_leftovers:
+                    continue
+
+                current_calories = self.planned_meal_calories(meal) or 0
+                for recipe in recipe_candidates(self.session, meal_slot):
+                    coverage = inventory_coverage(recipe, inventory)
+                    for servings in range(1, max_planned_servings(meal_slot) + 1):
+                        candidate_calories = recipe.calories * servings
+                        if candidate_calories <= current_calories:
+                            continue
+                        if candidate_calories > slot_calorie_ceiling(meal_slot):
+                            continue
+
+                        candidate_score = score_recipe(
+                            recipe=recipe,
+                            slot_target=slot_targets[meal_slot],
+                            coverage=coverage,
+                            feedback_score=feedback.get(recipe.id, 3.0),
+                            recent_count=recent_counts.get(recipe.id, 0),
+                            appliance_state=appliance_state,
+                            inventory_by_ingredient=inventory,
+                            planned_servings_override=servings,
+                        )
+                        utility = candidate_score + min(candidate_calories - current_calories, deficit) * 0.2
+                        if best_upgrade is None or utility > best_upgrade["utility"]:
+                            best_upgrade = {
+                                "meal": meal,
+                                "recipe": recipe,
+                                "servings": servings,
+                                "utility": utility,
+                                "calories": candidate_calories,
+                            }
+
+            if best_upgrade is None:
+                break
+
+            meal = best_upgrade["meal"]
+            recipe = best_upgrade["recipe"]
+            servings = best_upgrade["servings"]
+            meal.recipe_id = recipe.id
+            meal.recipe = recipe
+            meal.title = recipe.name
+            meal.uses_leftovers = False
+            meal.planned_servings = servings
+            meal.notes = (
+                "Adjusted to better match your daily calorie goal. "
+                f"{servings} serving{'s' if servings != 1 else ''} planned."
+            )
+            self.session.flush()
 
     def _rebuild_prep_tasks(self, week_start: date) -> None:
         days = (
@@ -513,7 +674,15 @@ class PlannerService:
         profile = self.profile_service.get_profile()
         nutrition = compute_nutrition_targets(profile)
         slot_targets = build_slot_targets(profile, nutrition)
-        return {"day": day, "profile": profile, "nutrition": nutrition, "slot_targets": slot_targets}
+        planned_calories = self.planned_day_calories(day)
+        return {
+            "day": day,
+            "profile": profile,
+            "nutrition": nutrition,
+            "slot_targets": slot_targets,
+            "planned_calories": planned_calories,
+            "calorie_gap": planned_calories - nutrition.calories,
+        }
 
 
 class GroceryService:
@@ -569,7 +738,9 @@ class GroceryService:
             if meal.recipe is None or meal.uses_leftovers:
                 continue
             for recipe_ingredient in meal.recipe.ingredients:
-                required[(recipe_ingredient.ingredient_id, recipe_ingredient.unit)] += recipe_ingredient.quantity
+                required[(recipe_ingredient.ingredient_id, recipe_ingredient.unit)] += (
+                    recipe_ingredient.quantity * max(meal.planned_servings, 1)
+                )
 
         on_hand: dict[int, float] = defaultdict(float)
         inventory_items = self.session.query(InventoryItem).filter(InventoryItem.item_type == InventoryItemType.INGREDIENT.value).all()
@@ -656,6 +827,23 @@ class GroceryService:
                 }
             )
         return rows
+
+    def mark_item_on_hand(self, grocery_item_id: int) -> GroceryListItem | None:
+        grocery_item = self.session.get(GroceryListItem, grocery_item_id)
+        if grocery_item is None or grocery_item.quantity <= 0:
+            return grocery_item
+
+        inventory_service = InventoryService(self.session)
+        inventory_service.adjust_inventory_item(
+            grocery_item.ingredient_name,
+            grocery_item.quantity,
+            self.suggested_location(grocery_item.section, grocery_item.ingredient_name),
+            "Marked on hand from grocery list",
+            mode="delta",
+            unit=grocery_item.unit,
+        )
+        self.session.flush()
+        return grocery_item
 
     def apply_purchases(self, purchases: list[dict[str, Any]]) -> None:
         inventory_service = InventoryService(self.session)

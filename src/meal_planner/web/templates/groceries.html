@@ -48,9 +48,15 @@
       </div>
       <div class="compact-shop-note">
         <span>{{ row.shopping_label }}</span>
-        {% if row.product_url %}
-        <a class="tiny-link" href="{{ row.product_url }}" target="_blank" rel="noreferrer">Wegmans ref</a>
-        {% endif %}
+        <div class="compact-shop-actions">
+          <form method="post" action="/groceries/items/{{ row.item.id }}/mark-on-hand" class="compact-inline-form">
+            <input type="hidden" name="week_start" value="{{ week_start.isoformat() }}">
+            <button type="submit" class="secondary compact-action-button">Check off</button>
+          </form>
+          {% if row.product_url %}
+          <a class="tiny-link" href="{{ row.product_url }}" target="_blank" rel="noreferrer">Wegmans ref</a>
+          {% endif %}
+        </div>
       </div>
     </li>
     {% else %}

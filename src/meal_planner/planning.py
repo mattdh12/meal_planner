@@ -16,6 +16,34 @@ class ScoredRecipe:
     recipe: Recipe
     score: float
     inventory_coverage: float
+    planned_servings: int
+
+
+def max_planned_servings(meal_slot: str) -> int:
+    return {
+        MealSlot.BREAKFAST.value: 2,
+        MealSlot.LUNCH.value: 2,
+        MealSlot.SNACK.value: 2,
+        MealSlot.DINNER.value: 1,
+    }.get(meal_slot, 1)
+
+
+def recommended_servings(recipe: Recipe, slot_target: MealSlotTargets) -> int:
+    calorie_basis = max(recipe.calories, 1)
+    protein_basis = max(recipe.protein_g, 1)
+    best_servings = 1
+    best_score = (
+        fabs(calorie_basis - slot_target.target_calories)
+        + fabs(protein_basis - slot_target.target_protein_g) * 3
+    )
+    for servings in range(2, max_planned_servings(recipe.meal_slot) + 1):
+        calorie_diff = fabs((calorie_basis * servings) - slot_target.target_calories)
+        protein_diff = fabs((protein_basis * servings) - slot_target.target_protein_g) * 3
+        combined = calorie_diff + protein_diff
+        if combined < best_score:
+            best_score = combined
+            best_servings = servings
+    return best_servings
 
 
 def compute_nutrition_targets(profile: UserProfile) -> NutritionTargets:
@@ -36,8 +64,8 @@ def build_slot_targets(profile: UserProfile, targets: NutritionTargets) -> dict[
     calorie_ratios = {
         MealSlot.BREAKFAST.value: 0.25,
         MealSlot.LUNCH.value: 0.25,
-        MealSlot.SNACK.value: 0.10,
-        MealSlot.DINNER.value: 0.40,
+        MealSlot.SNACK.value: 0.20,
+        MealSlot.DINNER.value: 0.30,
     }
     protein_ratios = {
         MealSlot.BREAKFAST.value: 0.20,
@@ -61,6 +89,35 @@ def build_slot_targets(profile: UserProfile, targets: NutritionTargets) -> dict[
         )
         for slot in calorie_ratios
     }
+
+
+def slot_calorie_ceiling(meal_slot: str) -> int:
+    return {
+        MealSlot.BREAKFAST.value: 850,
+        MealSlot.LUNCH.value: 1_100,
+        MealSlot.SNACK.value: 650,
+        MealSlot.DINNER.value: 950,
+    }.get(meal_slot, 1_000)
+
+
+def protein_alignment_bonus(meal_slot: str, planned_protein: int) -> float:
+    if meal_slot == MealSlot.BREAKFAST.value:
+        if planned_protein >= 30:
+            return 24.0
+        if planned_protein >= 25:
+            return 14.0
+        if planned_protein < 22:
+            return -28.0
+    if meal_slot == MealSlot.SNACK.value:
+        if planned_protein >= 25:
+            return 18.0
+        if planned_protein >= 20:
+            return 10.0
+        if planned_protein < 15:
+            return -16.0
+    if meal_slot in {MealSlot.LUNCH.value, MealSlot.DINNER.value} and planned_protein < 30:
+        return -10.0
+    return 0.0
 
 
 def inventory_coverage(recipe: Recipe, inventory_by_ingredient: dict[int, float]) -> float:
@@ -127,6 +184,8 @@ def score_recipe(
     inventory_by_ingredient: dict[int, float],
     weekly_ingredient_counts: dict[int, int] | None = None,
     weekly_recipe_count: int = 0,
+    previous_slot_recipe_id: int | None = None,
+    planned_servings_override: int | None = None,
 ) -> float:
     for recipe_appliance in recipe.appliances:
         state = appliance_state.get(recipe_appliance.appliance_name.lower())
@@ -139,15 +198,24 @@ def score_recipe(
     if total_minutes > max(slot_target.max_prep_minutes, 5) + 20:
         return -1_000
 
+    planned_servings = planned_servings_override or recommended_servings(recipe, slot_target)
+    planned_calories = recipe.calories * planned_servings
+    planned_protein = recipe.protein_g * planned_servings
+
     score = 100.0
-    score += coverage * 25
+    coverage_weight = 10 if recipe.meal_slot in {MealSlot.BREAKFAST.value, MealSlot.SNACK.value} else 18
+    score += coverage * coverage_weight
     score += feedback_score * 4
     score -= recent_count * 8
-    score -= fabs(recipe.calories - slot_target.target_calories) / max(slot_target.target_calories, 1) * 20
-    score -= fabs(recipe.protein_g - slot_target.target_protein_g) * 0.3
+    score -= fabs(planned_calories - slot_target.target_calories) / max(slot_target.target_calories, 1) * 20
+    score -= fabs(planned_protein - slot_target.target_protein_g) * 0.3
     score += max(0, 5 - recipe.prep_minutes)
     score += max(0, 4 - recipe.pots_pans_score) * 4
     score += recipe.simplicity_score * 3
+    score += protein_alignment_bonus(recipe.meal_slot, planned_protein)
+    calorie_ceiling = slot_calorie_ceiling(recipe.meal_slot)
+    if planned_calories > calorie_ceiling:
+        score -= (planned_calories - calorie_ceiling) * 0.45
     weekly_ingredient_counts = weekly_ingredient_counts or {}
     ingredient_ids = [row.ingredient_id for row in recipe.ingredients]
     if ingredient_ids:
@@ -162,17 +230,23 @@ def score_recipe(
         score -= new_shopping_count * 10
         score -= (1 - coverage) * 18
         if coverage == 1.0:
-            score += 16
-            if slot_target.max_prep_minutes <= 10:
-                score += 10
-        elif coverage >= 0.75:
             score += 8
+            if slot_target.max_prep_minutes <= 10:
+                score += 4
+        elif coverage >= 0.75:
+            score += 4
 
     if recipe.meal_slot in {MealSlot.BREAKFAST.value, MealSlot.SNACK.value}:
-        score += coverage * 12
+        score += coverage * 4
 
     repeat_penalty = 2 if recipe.meal_slot in {MealSlot.BREAKFAST.value, MealSlot.SNACK.value} else 6
     score -= weekly_recipe_count * repeat_penalty
+    if (
+        previous_slot_recipe_id is not None
+        and recipe.id == previous_slot_recipe_id
+        and recipe.meal_slot in {MealSlot.LUNCH.value, MealSlot.DINNER.value}
+    ):
+        score -= 140
     if recipe.meal_slot == MealSlot.DINNER.value:
         score += 5 if recipe.has_protein_component else 0
         score += 3 if recipe.has_carb_component else 0
@@ -208,6 +282,7 @@ def choose_best_recipe(
     meal_slot: str,
     weekly_ingredient_counts: dict[int, int] | None = None,
     weekly_recipe_counts: dict[int, int] | None = None,
+    previous_slot_recipe_id: int | None = None,
 ) -> ScoredRecipe | None:
     targets = build_slot_targets(profile, compute_nutrition_targets(profile))
     candidates = recipe_candidates(session, meal_slot)
@@ -224,6 +299,7 @@ def choose_best_recipe(
     scored: list[ScoredRecipe] = []
     for recipe in candidates:
         coverage = inventory_coverage(recipe, inventory)
+        planned_servings = recommended_servings(recipe, targets[meal_slot])
         score = score_recipe(
             recipe=recipe,
             slot_target=targets[meal_slot],
@@ -234,10 +310,22 @@ def choose_best_recipe(
             inventory_by_ingredient=inventory,
             weekly_ingredient_counts=weekly_ingredient_counts,
             weekly_recipe_count=weekly_recipe_counts.get(recipe.id, 0),
+            previous_slot_recipe_id=previous_slot_recipe_id,
         )
-        scored.append(ScoredRecipe(recipe=recipe, score=score, inventory_coverage=coverage))
+        scored.append(
+            ScoredRecipe(
+                recipe=recipe,
+                score=score,
+                inventory_coverage=coverage,
+                planned_servings=planned_servings,
+            )
+        )
 
     scored.sort(key=lambda row: row.score, reverse=True)
+    if meal_slot in {MealSlot.LUNCH.value, MealSlot.DINNER.value} and previous_slot_recipe_id is not None:
+        non_repeating = [row for row in scored if row.recipe.id != previous_slot_recipe_id and row.score > -1_000]
+        if non_repeating:
+            return non_repeating[0]
     return scored[0] if scored and scored[0].score > -1_000 else None
 
 

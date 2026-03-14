@@ -26,7 +26,7 @@
       </div>
     </div>
     <ul class="meal-list">
-      {% for meal in day.meals %}
+      {% for meal in day.meals|ordered_meals %}
       <li class="meal-item">
         <div class="row-between">
           <div>

@@ -16,7 +16,7 @@
     </div>
 
     <ul class="meal-list">
-      {% for meal in overview.day.meals %}
+      {% for meal in overview.day.meals|ordered_meals %}
       <li class="meal-item">
         <header>
           <div>
@@ -27,6 +27,14 @@
             <a class="tiny-link" href="/recipes/{{ meal.recipe_id }}">Open step-by-step instructions</a>
             {% else %}
             <p class="meal-title">{{ meal.title }}</p>
+            {% endif %}
+            {% if meal.recipe %}
+            <p class="muted tiny">
+              {{ meal.recipe.calories * meal.planned_servings }} kcal
+              {% if meal.planned_servings > 1 %}
+              | {{ meal.planned_servings }} servings planned
+              {% endif %}
+            </p>
             {% endif %}
             <p class="muted tiny">{{ meal.notes or "Planned around your current rules and inventory." }}</p>
           </div>
@@ -49,10 +57,31 @@
       <h3>{{ overview.nutrition.calories }} kcal</h3>
       <p class="muted">Protein {{ overview.nutrition.protein_g }}g, carbs {{ overview.nutrition.carbs_g }}g, fat {{ overview.nutrition.fat_g }}g.</p>
       <p class="muted tiny">This includes a weekly activity average based on {{ overview.profile.workouts_per_week }} workouts per week.</p>
+      <p class="muted tiny">
+        Planned today: {{ overview.planned_calories }} kcal
+        {% if overview.calorie_gap > 0 %}
+        | {{ overview.calorie_gap }} over target
+        {% elif overview.calorie_gap < 0 %}
+        | {{ -overview.calorie_gap }} under target
+        {% else %}
+        | right on target
+        {% endif %}
+      </p>
     </article>
-    <article class="callout">
-      <h3>Planning vibe</h3>
-      <p class="muted">Breakfast stays instant, lunch stays quick, snacks stay simple, and dinner gets the most prep room.</p>
+    <article class="card">
+      <p class="eyebrow">Supplements today</p>
+      <h3>Recommended add-ons</h3>
+      <ul class="simple-list">
+        {% for supplement in recommended_supplements %}
+        <li class="supplement-row">
+          <strong>{{ supplement.name|display_name }}</strong>
+          <span class="muted tiny">{{ supplement.dosage }}</span>
+          <p class="muted tiny">{{ supplement.notes }}</p>
+        </li>
+        {% else %}
+        <li class="meal-item">No supplements are marked as recommended right now.</li>
+        {% endfor %}
+      </ul>
     </article>
   </aside>
 </section>
@@ -100,7 +129,7 @@
     <ul class="simple-list">
       {% for item in grocery_list.items[:8] %}
       <li class="meal-item row-between">
-        <span>{{ item.ingredient_name }}</span>
+        <span>{{ item.ingredient_name|display_name }}</span>
         <span class="muted">{{ item.quantity }} {{ item.unit }}</span>
       </li>
       {% else %}

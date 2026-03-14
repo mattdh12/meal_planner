@@ -25,6 +25,16 @@
       <p>{{ recipe.notes }}</p>
     </div>
     {% endif %}
+    {% if leftover_reheat_steps %}
+    <div class="instruction-block">
+      <p class="eyebrow">Leftover microwave guide</p>
+      <ol class="step-list">
+        {% for step in leftover_reheat_steps %}
+        <li>{{ step }}</li>
+        {% endfor %}
+      </ol>
+    </div>
+    {% endif %}
     <div class="callout">
       <strong>Macros</strong>
       <p>{{ recipe.calories }} kcal | Protein {{ recipe.protein_g }}g | Carbs {{ recipe.carbs_g }}g | Fat {{ recipe.fat_g }}g</p>

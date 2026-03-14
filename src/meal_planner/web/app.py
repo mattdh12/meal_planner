@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from meal_planner.ai import AIPlannerAdapter
-from meal_planner.domain import start_of_week
+from meal_planner.domain import MEAL_SLOT_ORDER, start_of_week
 from meal_planner.services import (
     ApplianceService,
     FeedbackService,
@@ -51,12 +51,20 @@ def _display_name(raw_value: object) -> object:
     return raw_value
 
 
+def _ordered_meals(meals: object) -> object:
+    if not isinstance(meals, list):
+        return meals
+    slot_order = {slot: index for index, slot in enumerate(MEAL_SLOT_ORDER)}
+    return sorted(meals, key=lambda meal: (slot_order.get(getattr(meal, "meal_slot", ""), 999), getattr(meal, "id", 0)))
+
+
 def create_app(database_path: Path | None = None) -> FastAPI:
     app = FastAPI(title="Meal Planner", version="0.1.0")
     app.state.database = Database(database_path=database_path)
     app.state.database.initialize()
     app.state.templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
     app.state.templates.env.filters["display_name"] = _display_name
+    app.state.templates.env.filters["ordered_meals"] = _ordered_meals
     app.state.ai_adapter = AIPlannerAdapter()
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
@@ -72,6 +80,7 @@ def create_app(database_path: Path | None = None) -> FastAPI:
             inventory_service = InventoryService(session)
             feedback_service = FeedbackService(session, app.state.ai_adapter)
             appliance_service = ApplianceService(session)
+            recipe_service = RecipeService(session)
             overview = planner.today_overview(date.today())
             prep_tasks = planner.prep_tasks_for_date(date.today())
             grocery_list = grocery_service.get_weekly_list(start_of_week(date.today()))
@@ -83,6 +92,7 @@ def create_app(database_path: Path | None = None) -> FastAPI:
                     "grocery_list": grocery_list,
                     "recent_events": inventory_service.recent_events(),
                     "suggestions": feedback_service.dashboard_context()["suggestions"],
+                    "recommended_supplements": recipe_service.recommended_supplements(),
                 }
             )
             return app.state.templates.TemplateResponse(request, "today.html", context)
@@ -192,8 +202,17 @@ def create_app(database_path: Path | None = None) -> FastAPI:
             profile_service = ProfileService(session)
             appliance_service = ApplianceService(session)
             recipe = recipe_service.get_recipe(recipe_id)
+            microwave_available = any(
+                appliance.name.lower() == "microwave" and appliance.has_appliance
+                for appliance in appliance_service.list_appliances()
+            )
             context = _base_context(request, profile_service.get_profile(), len(appliance_service.unresolved()))
-            context.update({"recipe": recipe})
+            context.update(
+                {
+                    "recipe": recipe,
+                    "leftover_reheat_steps": recipe_service.leftover_reheat_steps(recipe, microwave_available),
+                }
+            )
             return app.state.templates.TemplateResponse(request, "recipe_detail.html", context)
 
     @app.post("/recipes/{recipe_id}/feedback")
@@ -239,6 +258,19 @@ def create_app(database_path: Path | None = None) -> FastAPI:
             PlannerService(session).generate_week_plan(week_start)
             GroceryService(session).generate_weekly_list(week_start, regenerate=True)
         return RedirectResponse(url=f"/groceries?start={week_start.isoformat()}", status_code=303)
+
+    @app.post("/groceries/items/{grocery_item_id}/mark-on-hand")
+    async def mark_grocery_item_on_hand(grocery_item_id: int, request: Request) -> RedirectResponse:
+        form = await request.form()
+        week_start = _parse_week_start(str(form.get("week_start")))
+        with app.state.database.session() as session:
+            grocery_service = GroceryService(session)
+            marked_item = grocery_service.mark_item_on_hand(grocery_item_id)
+            target_week = week_start
+            if marked_item is not None and marked_item.grocery_list is not None:
+                target_week = marked_item.grocery_list.week_start
+            grocery_service.generate_weekly_list(target_week, regenerate=True)
+        return RedirectResponse(url=f"/groceries?start={target_week.isoformat()}", status_code=303)
 
     @app.get("/groceries/receive")
     async def receive_groceries(request: Request, start: str | None = None) -> object:
@@ -327,6 +359,28 @@ def create_app(database_path: Path | None = None) -> FastAPI:
         has_it = str(form.get("has_it") or "false").lower() == "true"
         with app.state.database.session() as session:
             ApplianceService(session).resolve_unknown_appliance(appliance_name, has_it)
+            week_start = start_of_week(date.today())
+            PlannerService(session).generate_week_plan(week_start, regenerate=True)
+            GroceryService(session).generate_weekly_list(week_start, regenerate=True)
+        return RedirectResponse(url="/profile", status_code=303)
+
+    @app.post("/profile/appliances/add")
+    async def add_appliance(request: Request) -> RedirectResponse:
+        form = await request.form()
+        appliance_name = str(form.get("name") or "")
+        with app.state.database.session() as session:
+            ApplianceService(session).add_appliance(appliance_name, has_it=True)
+            week_start = start_of_week(date.today())
+            PlannerService(session).generate_week_plan(week_start, regenerate=True)
+            GroceryService(session).generate_weekly_list(week_start, regenerate=True)
+        return RedirectResponse(url="/profile", status_code=303)
+
+    @app.post("/profile/appliances/{appliance_id}/availability")
+    async def update_appliance_availability(appliance_id: int, request: Request) -> RedirectResponse:
+        form = await request.form()
+        has_it = str(form.get("has_it") or "false").lower() == "true"
+        with app.state.database.session() as session:
+            ApplianceService(session).set_availability(appliance_id, has_it)
             week_start = start_of_week(date.today())
             PlannerService(session).generate_week_plan(week_start, regenerate=True)
             GroceryService(session).generate_weekly_list(week_start, regenerate=True)

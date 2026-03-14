@@ -91,32 +91,76 @@
 
   <article class="card">
     <p class="eyebrow">Appliances</p>
-    <h2>What the planner knows</h2>
-    <ul class="simple-list">
-      {% for appliance in appliances %}
-      <li class="meal-item">
-        <div class="row-between">
-          <strong>{{ appliance.name }}</strong>
-          <span class="muted">
-            {% if appliance.has_appliance is none %}
-            Unknown
-            {% elif appliance.has_appliance %}
-            Available
-            {% else %}
-            Not available
-            {% endif %}
-          </span>
-        </div>
-        {% if appliance.has_appliance is none %}
-        <form method="post" action="/profile/appliances/resolve" class="inline-form">
-          <input type="hidden" name="name" value="{{ appliance.name }}">
-          <button type="submit" name="has_it" value="true">I have it</button>
-          <button type="submit" name="has_it" value="false" class="secondary">I do not have it</button>
-        </form>
-        {% endif %}
-      </li>
-      {% endfor %}
-    </ul>
+    <h2>Manage appliance access</h2>
+    <form method="post" action="/profile/appliances/add" class="inline-form">
+      <label>
+        Add appliance
+        <input name="name" placeholder="Instant Pot">
+      </label>
+      <button type="submit">Add to my list</button>
+    </form>
+    <div class="profile-appliance-grid">
+      <section>
+        <p class="eyebrow">Available</p>
+        <ul class="simple-list">
+          {% for appliance in appliances if appliance.has_appliance %}
+          <li class="meal-item">
+            <div class="row-between">
+              <strong>{{ appliance.name|display_name }}</strong>
+              <form method="post" action="/profile/appliances/{{ appliance.id }}/availability" class="compact-inline-form">
+                <input type="hidden" name="has_it" value="false">
+                <button type="submit" class="secondary compact-action-button">Remove</button>
+              </form>
+            </div>
+          </li>
+          {% else %}
+          <li class="meal-item">No appliances are marked as available yet.</li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section>
+        <p class="eyebrow">Not available</p>
+        <ul class="simple-list">
+          {% for appliance in appliances if appliance.has_appliance is false %}
+          <li class="meal-item">
+            <div class="row-between">
+              <strong>{{ appliance.name|display_name }}</strong>
+              <form method="post" action="/profile/appliances/{{ appliance.id }}/availability" class="compact-inline-form">
+                <input type="hidden" name="has_it" value="true">
+                <button type="submit" class="secondary compact-action-button">Add back</button>
+              </form>
+            </div>
+          </li>
+          {% else %}
+          <li class="meal-item">Nothing has been removed from your appliance list.</li>
+          {% endfor %}
+        </ul>
+      </section>
+    </div>
+
+    <div class="profile-appliance-grid">
+      <section>
+        <p class="eyebrow">Needs confirmation</p>
+        <ul class="simple-list">
+          {% for appliance in appliances if appliance.has_appliance is none %}
+          <li class="meal-item">
+            <div class="row-between">
+              <strong>{{ appliance.name|display_name }}</strong>
+              <span class="muted">Unknown</span>
+            </div>
+            <form method="post" action="/profile/appliances/resolve" class="inline-form">
+              <input type="hidden" name="name" value="{{ appliance.name }}">
+              <button type="submit" name="has_it" value="true">I have it</button>
+              <button type="submit" name="has_it" value="false" class="secondary">I do not have it</button>
+            </form>
+          </li>
+          {% else %}
+          <li class="meal-item">No unresolved appliance questions right now.</li>
+          {% endfor %}
+        </ul>
+      </section>
+    </div>
   </article>
 </section>
 {% endblock %}

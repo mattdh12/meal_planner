@@ -19,6 +19,7 @@
   "appliances": [
     { "name": "Oven", "has_appliance": true },
     { "name": "Microwave", "has_appliance": true },
+    { "name": "Meat Thermometer", "has_appliance": true },
     { "name": "Stove Top", "has_appliance": true },
     { "name": "Pans", "has_appliance": true },
     { "name": "Vitamix", "has_appliance": true },
